@@ -1,9 +1,9 @@
 {
-  "name": "komodo",
+  "name": "siphon",
   "private": true,
   "scripts": {
     "build": "turbo build",
-    "dev": "turbo dev",
+    "dev": "turbo dev --ui stream",
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },

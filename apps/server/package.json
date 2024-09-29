@@ -1,0 +1,12 @@
+{
+  "name": "server",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "kill -9 $(lsof -ti:8000) || air",
+    "make-migration": "migrate create -ext sql -dir db/migrations -seq"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
