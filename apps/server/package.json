@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "kill -9 $(lsof -ti:8000) || air",
-    "make-migration": "migrate create -ext sql -dir db/migrations -seq"
+    "make-migration": "migrate create -ext sql -dir db/migrations -seq",
+    "gh-wh-proxy": "smee -u https://smee.io/ZdaCIAdCc7Z02P --port 8000 --path /api/github/hook"
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "dependencies": {
+    "smee-client": "^2.0.3"
+  }
 }

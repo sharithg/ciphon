@@ -12,9 +12,9 @@ import (
 func Migrate(dbUrl string) {
 	m, err := migrate.New("file://db/migrations", dbUrl)
 	if err != nil {
-		log.Fatal("error intializing migrationss: ", err)
+		log.Fatal("error intializing migrations: ", err)
 	}
 	if err := m.Up(); err != nil {
-		fmt.Println("running migrationss: ", err)
+		fmt.Println("running migrations: ", err)
 	}
 }

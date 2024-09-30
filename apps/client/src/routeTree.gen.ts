@@ -17,7 +17,7 @@ import { Route as rootRoute } from './routes/__root'
 // Create Virtual Routes
 
 const SettingsLazyImport = createFileRoute('/settings')()
-const DashboardLazyImport = createFileRoute('/dashboard')()
+const ProjectsLazyImport = createFileRoute('/projects')()
 const IndexLazyImport = createFileRoute('/')()
 
 // Create/Update Routes
@@ -27,10 +27,10 @@ const SettingsLazyRoute = SettingsLazyImport.update({
   getParentRoute: () => rootRoute,
 } as any).lazy(() => import('./routes/settings.lazy').then((d) => d.Route))
 
-const DashboardLazyRoute = DashboardLazyImport.update({
-  path: '/dashboard',
+const ProjectsLazyRoute = ProjectsLazyImport.update({
+  path: '/projects',
   getParentRoute: () => rootRoute,
-} as any).lazy(() => import('./routes/dashboard.lazy').then((d) => d.Route))
+} as any).lazy(() => import('./routes/projects.lazy').then((d) => d.Route))
 
 const IndexLazyRoute = IndexLazyImport.update({
   path: '/',
@@ -48,11 +48,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexLazyImport
       parentRoute: typeof rootRoute
     }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardLazyImport
+    '/projects': {
+      id: '/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof ProjectsLazyImport
       parentRoute: typeof rootRoute
     }
     '/settings': {
@@ -69,41 +69,41 @@ declare module '@tanstack/react-router' {
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexLazyRoute
-  '/dashboard': typeof DashboardLazyRoute
+  '/projects': typeof ProjectsLazyRoute
   '/settings': typeof SettingsLazyRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexLazyRoute
-  '/dashboard': typeof DashboardLazyRoute
+  '/projects': typeof ProjectsLazyRoute
   '/settings': typeof SettingsLazyRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexLazyRoute
-  '/dashboard': typeof DashboardLazyRoute
+  '/projects': typeof ProjectsLazyRoute
   '/settings': typeof SettingsLazyRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard' | '/settings'
+  fullPaths: '/' | '/projects' | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/settings'
-  id: '__root__' | '/' | '/dashboard' | '/settings'
+  to: '/' | '/projects' | '/settings'
+  id: '__root__' | '/' | '/projects' | '/settings'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   IndexLazyRoute: typeof IndexLazyRoute
-  DashboardLazyRoute: typeof DashboardLazyRoute
+  ProjectsLazyRoute: typeof ProjectsLazyRoute
   SettingsLazyRoute: typeof SettingsLazyRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexLazyRoute: IndexLazyRoute,
-  DashboardLazyRoute: DashboardLazyRoute,
+  ProjectsLazyRoute: ProjectsLazyRoute,
   SettingsLazyRoute: SettingsLazyRoute,
 }
 
@@ -120,15 +120,15 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/",
-        "/dashboard",
+        "/projects",
         "/settings"
       ]
     },
     "/": {
       "filePath": "index.lazy.tsx"
     },
-    "/dashboard": {
-      "filePath": "dashboard.lazy.tsx"
+    "/projects": {
+      "filePath": "projects.lazy.tsx"
     },
     "/settings": {
       "filePath": "settings.lazy.tsx"

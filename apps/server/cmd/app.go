@@ -8,8 +8,10 @@ import (
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/rs/cors"
 
+	"github.com/sharithg/siphon/github"
 	"github.com/sharithg/siphon/handlers"
 	"github.com/sharithg/siphon/models"
 	"github.com/sharithg/siphon/storage"
@@ -38,9 +40,13 @@ func main() {
 	}
 
 	router := http.NewServeMux()
+	gh := github.New()
+
+	router.Handle(githubapp.DefaultWebhookRoute, gh.Handler)
 
 	router.HandleFunc("POST /node", env.AddNode)
 	router.HandleFunc("GET /nodes", env.GetNodes)
+	router.HandleFunc("GET /github/webooks", env.HandleGhWebhook)
 
 	handler := cors.Default().Handler(router)
 
