@@ -33,20 +33,21 @@ func main() {
 	models.Migrate(dbUrl)
 
 	client := storage.SetupMinio()
-
-	env := &handlers.Env{
-		Nodes:   models.NodeModel{DB: db},
-		Storage: client,
-	}
+	gh := github.New()
 
 	router := http.NewServeMux()
-	gh := github.New()
+
+	env := &handlers.Env{
+		Nodes:    models.NodeModel{DB: db},
+		Storage:  client,
+		GhClient: gh.Client,
+	}
 
 	router.Handle(githubapp.DefaultWebhookRoute, gh.Handler)
 
 	router.HandleFunc("POST /node", env.AddNode)
 	router.HandleFunc("GET /nodes", env.GetNodes)
-	router.HandleFunc("GET /github/webooks", env.HandleGhWebhook)
+	router.HandleFunc("GET /repos", env.GetRepos)
 
 	handler := cors.Default().Handler(router)
 

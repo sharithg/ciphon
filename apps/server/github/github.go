@@ -17,35 +17,23 @@ package github
 import (
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
 	"time"
 
+	"github.com/google/go-github/v65/github"
 	"github.com/gregjones/httpcache"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/rcrowley/go-metrics"
-	"github.com/sharithg/siphon/config"
 )
 
 type Github struct {
 	Handler http.Handler
+	Client  *github.Client
 }
 
 func New() Github {
-	currentDir, err := os.Getwd()
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	configPath := filepath.Join(currentDir, "gh-config.yaml")
-	config, err := config.ReadConfig(configPath)
-	if err != nil {
-		log.Fatal(err)
-	}
+	config := ReadConfig()
 
-	if err != nil {
-		log.Fatalln("error reading gh oauth config: %w", err)
-	}
 	metricsRegistry := metrics.DefaultRegistry
 
 	cc, err := githubapp.NewDefaultCachingClientCreator(
@@ -59,7 +47,7 @@ func New() Github {
 	)
 
 	if err != nil {
-		log.Fatalln("error creating gh wh client: %w", err)
+		log.Fatalln("error creating gh wh client", err)
 	}
 
 	prCommentHandler := &CommitHandler{
@@ -69,7 +57,14 @@ func New() Github {
 
 	webhookHandler := githubapp.NewDefaultEventDispatcher(config.Github, prCommentHandler)
 
+	client, err := cc.NewAppClient()
+
+	if err != nil {
+		log.Fatalln("error creating gh api client", err)
+	}
+
 	return Github{
 		Handler: webhookHandler,
+		Client:  client,
 	}
 }

@@ -5,11 +5,11 @@ import (
 )
 
 type Node struct {
-	Id      string `json:"id"`
-	Host    string `json:"host"`
-	Name    string `json:"name"`
-	User    string `json:"user"`
-	PemFile string `json:"pemFile"`
+	Id      string
+	Host    string
+	Name    string
+	User    string
+	PemFile string
 }
 
 type NodeModel struct {

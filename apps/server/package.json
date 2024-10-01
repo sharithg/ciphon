@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "kill -9 $(lsof -ti:8000) || air",
+    "kill-port": "kill -9 $(lsof -ti:8000)",
+    "dev": "air",
     "make-migration": "migrate create -ext sql -dir db/migrations -seq",
     "gh-wh-proxy": "smee -u https://smee.io/ZdaCIAdCc7Z02P --port 8000 --path /api/github/hook"
   },

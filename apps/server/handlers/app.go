@@ -5,13 +5,15 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/google/go-github/v65/github"
 	"github.com/sharithg/siphon/models"
 	"github.com/sharithg/siphon/storage"
 )
 
 type Env struct {
-	Nodes   models.NodeModel
-	Storage *storage.Minio
+	Nodes    models.NodeModel
+	Storage  *storage.Minio
+	GhClient *github.Client
 }
 
 var originAllowlist = []string{

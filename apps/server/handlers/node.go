@@ -13,6 +13,13 @@ import (
 	"github.com/sharithg/siphon/ssh"
 )
 
+type Node struct {
+	Id   string `json:"id"`
+	Host string `json:"host"`
+	Name string `json:"name"`
+	User string `json:"user"`
+}
+
 func (env *Env) AddNode(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 
@@ -100,6 +107,16 @@ func (env *Env) AddNode(w http.ResponseWriter, r *http.Request) {
 func (env *Env) GetNodes(w http.ResponseWriter, r *http.Request) {
 	nodes, err := env.Nodes.All()
 
+	var nodesList []Node
+	for _, node := range nodes {
+		nodesList = append(nodesList, Node{
+			Id:   node.Id,
+			Host: node.Host,
+			Name: node.Name,
+			User: node.User,
+		})
+	}
+
 	if err != nil {
 		log.Printf("Error fetching nodes: %v", err)
 		http.Error(w, "Error fetching nodes", http.StatusBadRequest)
@@ -108,5 +125,5 @@ func (env *Env) GetNodes(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(nodes)
+	json.NewEncoder(w).Encode(nodesList)
 }

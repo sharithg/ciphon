@@ -2,6 +2,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { z } from "zod";
 import { toast } from "./use-toast";
+import { Node } from "@/@types/api";
 
 export const nodeSchema = z.object({
   name: z.string().min(2, {
@@ -17,13 +18,6 @@ export const nodeSchema = z.object({
     message: "Pem is required",
   }),
 });
-
-type Node = {
-  id: string;
-  host: string;
-  name: string;
-  user: string;
-};
 
 export type NodeWithStatus = Node & { status: "Healthy" | "Unhealthy" };
 

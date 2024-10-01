@@ -15,6 +15,7 @@ import {
   MagnifyingGlassIcon,
   PlusIcon,
 } from "@radix-ui/react-icons";
+import { useGetRepos } from "../hooks/use-github";
 
 type Project = {
   id: string;
@@ -50,6 +51,10 @@ export const Route = createLazyFileRoute("/projects")({
 function Projects() {
   const [projects, setProjects] = useState<Project[]>(mockProjects);
   const [searchTerm, setSearchTerm] = useState("");
+
+  const repos = useGetRepos();
+
+  console.log(repos.data?.data);
 
   const filteredProjects = projects.filter((project) =>
     project.name.toLowerCase().includes(searchTerm.toLowerCase())
