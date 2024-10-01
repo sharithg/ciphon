@@ -10,15 +10,18 @@ import (
 )
 
 type GithubRepo struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	LastUpdated string `json:"lastUpdated"`
 }
 
 func (env *Env) GetRepos(w http.ResponseWriter, r *http.Request) {
-	opt := &github.RepositoryListByUserOptions{}
+	opt := &github.ListOptions{}
 	ctx := context.Background()
-	repos, _, err := env.GhClient.Repositories.ListByUser(ctx, "sharithg", opt)
+	repos, _, err := env.GhClient.Apps.ListRepos(ctx, opt)
 
+	// fmt.Println(resp.Request.Header)
 	if err != nil {
 		log.Printf("Error getting github repos: %v", err)
 		http.Error(w, "Error getting github repos", http.StatusInternalServerError)
@@ -26,10 +29,12 @@ func (env *Env) GetRepos(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var repoList []GithubRepo
-	for _, repo := range repos {
+	for _, repo := range repos.Repositories {
 		repoList = append(repoList, GithubRepo{
-			ID:   repo.GetID(),
-			Name: repo.GetName(),
+			ID:          repo.GetID(),
+			Name:        repo.GetName(),
+			Description: repo.GetDescription(),
+			LastUpdated: repo.GetUpdatedAt().String(),
 		})
 	}
 

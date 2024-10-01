@@ -57,7 +57,7 @@ func New() Github {
 
 	webhookHandler := githubapp.NewDefaultEventDispatcher(config.Github, prCommentHandler)
 
-	client, err := cc.NewAppClient()
+	client, err := cc.NewInstallationClient(config.InstallationId)
 
 	if err != nil {
 		log.Fatalln("error creating gh api client", err)

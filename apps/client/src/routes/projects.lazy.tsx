@@ -16,49 +16,18 @@ import {
   PlusIcon,
 } from "@radix-ui/react-icons";
 import { useGetRepos } from "../hooks/use-github";
+import { formatDistance } from "date-fns";
 
-type Project = {
-  id: string;
-  name: string;
-  description: string;
-  lastUpdated: string;
-};
-
-const mockProjects: Project[] = [
-  {
-    id: "1",
-    name: "awesome-project",
-    description: "An awesome project",
-    lastUpdated: "2 days ago",
-  },
-  {
-    id: "2",
-    name: "cool-app",
-    description: "A cool application",
-    lastUpdated: "5 hours ago",
-  },
-  {
-    id: "3",
-    name: "my-website",
-    description: "Personal website",
-    lastUpdated: "1 week ago",
-  },
-];
 export const Route = createLazyFileRoute("/projects")({
   component: Projects,
 });
 
 function Projects() {
-  const [projects, setProjects] = useState<Project[]>(mockProjects);
   const [searchTerm, setSearchTerm] = useState("");
 
   const repos = useGetRepos();
 
   console.log(repos.data?.data);
-
-  const filteredProjects = projects.filter((project) =>
-    project.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const handleConnectNewProject = () => {
     // Implement the logic to connect a new project
@@ -83,7 +52,7 @@ function Projects() {
         />
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filteredProjects.map((project) => (
+        {repos.data?.data.map((project) => (
           <Card key={project.id}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -94,13 +63,16 @@ function Projects() {
             <CardContent>
               <CardDescription>{project.description}</CardDescription>
               <p className="text-xs text-muted-foreground mt-2">
-                Last updated: {project.lastUpdated}
+                Last updated:{" "}
+                {formatDistance(new Date(project.lastUpdated), new Date(), {
+                  addSuffix: true,
+                })}
               </p>
             </CardContent>
           </Card>
         ))}
       </div>
-      {filteredProjects.length === 0 && (
+      {repos.data?.data.length === 0 && (
         <p className="text-center text-muted-foreground">No projects found.</p>
       )}
     </div>

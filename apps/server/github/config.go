@@ -23,6 +23,8 @@ type Config struct {
 	Github githubapp.Config `yaml:"github"`
 
 	AppConfig MyApplicationConfig `yaml:"app_configuration"`
+
+	InstallationId int64
 }
 
 func ReadConfig() Config {
@@ -32,8 +34,9 @@ func ReadConfig() Config {
 	webhookSecret := os.Getenv("GITHUB_WEBHOOK_SECRET")
 	privateKey := os.Getenv("GITHUB_PRIVATE_KEY")
 	pullRequestPreamble := os.Getenv("APP_PULL_REQUEST_PREAMBLE")
-	// clientId := os.Getenv("GITHUB_CLIENT_ID")
-	// clientSecret := os.Getenv("GITHUB_CLIENT_SECRET")
+	clientId := os.Getenv("GITHUB_CLIENT_ID")
+	clientSecret := os.Getenv("GITHUB_CLIENT_SECRET")
+	installationIdStr := os.Getenv("GITHUB_INSTALLATION_ID")
 
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
@@ -43,6 +46,11 @@ func ReadConfig() Config {
 	integrationID, err := strconv.ParseInt(integrationIDStr, 10, 64)
 	if err != nil {
 		log.Fatalln("error reading gh integrationID", err)
+	}
+
+	installationId, err := strconv.ParseInt(installationIdStr, 10, 64)
+	if err != nil {
+		log.Fatalln("error reading gh installationId", err)
 	}
 
 	fmt.Println(integrationID)
@@ -62,17 +70,18 @@ func ReadConfig() Config {
 				WebhookSecret: webhookSecret,
 				PrivateKey:    privateKey,
 			},
-			// OAuth: struct {
-			// 	ClientID     string "yaml:\"client_id\" json:\"clientId\""
-			// 	ClientSecret string "yaml:\"client_secret\" json:\"clientSecret\""
-			// }{
-			// 	ClientID:     clientId,
-			// 	ClientSecret: clientSecret,
-			// },
+			OAuth: struct {
+				ClientID     string "yaml:\"client_id\" json:\"clientId\""
+				ClientSecret string "yaml:\"client_secret\" json:\"clientSecret\""
+			}{
+				ClientID:     clientId,
+				ClientSecret: clientSecret,
+			},
 			V3APIURL: "https://api.github.com/",
 		},
 		AppConfig: MyApplicationConfig{
 			PullRequestPreamble: pullRequestPreamble,
 		},
+		InstallationId: installationId,
 	}
 }
