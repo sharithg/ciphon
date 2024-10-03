@@ -15,7 +15,6 @@
 package github
 
 import (
-	"log"
 	"net/http"
 	"time"
 
@@ -23,6 +22,7 @@ import (
 	"github.com/gregjones/httpcache"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/rcrowley/go-metrics"
+	"github.com/sharithg/siphon/api"
 )
 
 type Github struct {
@@ -30,14 +30,12 @@ type Github struct {
 	Client  *github.Client
 }
 
-func New() Github {
-
-	config := ReadConfig()
+func New(config api.GithubConfig) (*github.Client, error) {
 
 	metricsRegistry := metrics.DefaultRegistry
 
 	cc, err := githubapp.NewDefaultCachingClientCreator(
-		config.Github,
+		config.AppConfig,
 		githubapp.WithClientUserAgent("siphon-app/1.0.0"),
 		githubapp.WithClientTimeout(3*time.Second),
 		githubapp.WithClientCaching(false, func() httpcache.Cache { return httpcache.NewMemoryCache() }),
@@ -47,24 +45,21 @@ func New() Github {
 	)
 
 	if err != nil {
-		log.Fatalln("error creating gh wh client", err)
+		return nil, err
 	}
 
 	prCommentHandler := &CommitHandler{
 		ClientCreator: cc,
-		Preamble:      config.AppConfig.PullRequestPreamble,
+		Preamble:      config.PullRequestPreamble,
 	}
 
-	webhookHandler := githubapp.NewDefaultEventDispatcher(config.Github, prCommentHandler)
+	_ = githubapp.NewDefaultEventDispatcher(config.AppConfig, prCommentHandler)
 
 	client, err := cc.NewInstallationClient(config.InstallationId)
 
 	if err != nil {
-		log.Fatalln("error creating gh api client", err)
+		return nil, err
 	}
 
-	return Github{
-		Handler: webhookHandler,
-		Client:  client,
-	}
+	return client, nil
 }

@@ -1,4 +1,4 @@
-package handlers
+package api
 
 import (
 	"fmt"
@@ -14,7 +14,7 @@ var Upgrader = websocket.Upgrader{
 	},
 }
 
-func (env *Env) Echo(w http.ResponseWriter, r *http.Request) {
+func (app *Application) Echo(w http.ResponseWriter, r *http.Request) {
 	connection, err := Upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		http.Error(w, "Failed to upgrade to WebSocket", http.StatusInternalServerError)

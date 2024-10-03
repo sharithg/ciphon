@@ -1,4 +1,4 @@
-package handlers
+package api
 
 import (
 	"context"
@@ -16,10 +16,10 @@ type GithubRepo struct {
 	LastUpdated string `json:"lastUpdated"`
 }
 
-func (env *Env) GetRepos(w http.ResponseWriter, r *http.Request) {
+func (app *Application) getReposHandler(w http.ResponseWriter, r *http.Request) {
 	opt := &github.ListOptions{}
 	ctx := context.Background()
-	repos, _, err := env.GhClient.Apps.ListRepos(ctx, opt)
+	repos, _, err := app.GithubClient.Apps.ListRepos(ctx, opt)
 
 	// fmt.Println(resp.Request.Header)
 	if err != nil {

@@ -1,4 +1,4 @@
-package handlers
+package api
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/sharithg/siphon/models"
+	"github.com/sharithg/siphon/internal/storage"
 	"github.com/sharithg/siphon/ssh"
 )
 
@@ -23,7 +23,7 @@ type Node struct {
 	Status string `json:"status"`
 }
 
-func (env *Env) AddNode(w http.ResponseWriter, r *http.Request) {
+func (app *Application) createNodeHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 
 	fmt.Println("File Upload Endpoint Hit")
@@ -91,14 +91,14 @@ func (env *Env) AddNode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	objectName := fmt.Sprintf("assets/%s/key.pem", name)
-	info, err := env.Storage.Upload(ctx, "node-pem-files", objectName, tempFile.Name(), "application/x-x509-ca-ce")
+	info, err := app.MinioStorage.Upload(ctx, "node-pem-files", objectName, tempFile.Name(), "application/x-x509-ca-ce")
 	if err != nil {
 		log.Printf("Error uploading PEM file to storage: %v", err)
 		http.Error(w, "Error uploading PEM file to storage", http.StatusInternalServerError)
 		return
 	}
 
-	n := models.Node{
+	n := storage.Node{
 		Host:    host,
 		Name:    name,
 		PemFile: info.Key,
@@ -106,7 +106,7 @@ func (env *Env) AddNode(w http.ResponseWriter, r *http.Request) {
 		Port:    port,
 	}
 
-	id, err := env.Nodes.AddNode(n)
+	id, err := app.Store.Nodes.Create(n)
 
 	if err != nil {
 		log.Printf("Error adding node to database: %v", err)
@@ -121,17 +121,17 @@ func (env *Env) AddNode(w http.ResponseWriter, r *http.Request) {
 		err := ssh.InstallTools("", "", []byte(""))
 		if err != nil {
 			log.Printf("Failed to install tools for node %s: %v", id, err)
-			env.Nodes.UpdateNodeStatus(id, "error")
+			app.Store.Nodes.UpdateStatus(id, "error")
 			return
 		}
 		log.Printf("Successfully installed tools for node %s", id)
-		env.Nodes.UpdateNodeStatus(id, "healthy")
+		app.Store.Nodes.UpdateStatus(id, "healthy")
 	}()
 
 }
 
-func (env *Env) GetNodes(w http.ResponseWriter, r *http.Request) {
-	nodes, err := env.Nodes.All()
+func (app *Application) getNodesHandler(w http.ResponseWriter, r *http.Request) {
+	nodes, err := app.Store.Nodes.All()
 
 	var nodesList []Node
 	for _, node := range nodes {

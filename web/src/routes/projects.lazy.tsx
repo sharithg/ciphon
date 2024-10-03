@@ -15,7 +15,7 @@ import {
   MagnifyingGlassIcon,
   PlusIcon,
 } from "@radix-ui/react-icons";
-import { useGetRepos } from "../hooks/use-github";
+import { useGetRepos } from "../hooks/react-query/use-github";
 import { formatDistance } from "date-fns";
 
 export const Route = createLazyFileRoute("/projects")({

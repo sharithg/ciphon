@@ -30,7 +30,11 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { nodeSchema, useAddNewNode, useGetNodes } from "../hooks/use-nodes";
+import {
+  nodeSchema,
+  useAddNewNode,
+  useGetNodes,
+} from "../hooks/react-query/use-nodes";
 import { useWebsocket } from "../hooks/use-websocket";
 import { useEffect } from "react";
 

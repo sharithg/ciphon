@@ -1,8 +1,6 @@
-package models
+package storage
 
-import (
-	"database/sql"
-)
+import "database/sql"
 
 type Node struct {
 	Id      string
@@ -14,12 +12,12 @@ type Node struct {
 	Status  string
 }
 
-type NodeModel struct {
-	DB *sql.DB
+type NodeStore struct {
+	db *sql.DB
 }
 
-func (m NodeModel) All() ([]Node, error) {
-	rows, err := m.DB.Query("SELECT id, host, name, user, status FROM nodes")
+func (s *NodeStore) All() ([]Node, error) {
+	rows, err := s.db.Query("SELECT id, host, name, user, status FROM nodes")
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +42,7 @@ func (m NodeModel) All() ([]Node, error) {
 	return nodes, nil
 }
 
-func (m NodeModel) AddNode(node Node) (string, error) {
+func (s *NodeStore) Create(node Node) (string, error) {
 	var id string
 
 	query := `
@@ -53,7 +51,7 @@ func (m NodeModel) AddNode(node Node) (string, error) {
 	RETURNING id
 	`
 
-	err := m.DB.QueryRow(query, node.Host, node.User, node.Name, node.PemFile, node.Port).Scan(&id)
+	err := s.db.QueryRow(query, node.Host, node.User, node.Name, node.PemFile, node.Port).Scan(&id)
 
 	if err != nil {
 		return "", err
@@ -62,14 +60,14 @@ func (m NodeModel) AddNode(node Node) (string, error) {
 	return id, nil
 }
 
-func (m NodeModel) UpdateNodeStatus(nodeID string, status string) error {
+func (s *NodeStore) UpdateStatus(nodeID string, status string) error {
 	query := `
 	UPDATE nodes
 	SET status = $1, updated_at = now()
 	WHERE id = $2
 	`
 
-	_, err := m.DB.Exec(query, status, nodeID)
+	_, err := s.db.Exec(query, status, nodeID)
 
 	if err != nil {
 		return err

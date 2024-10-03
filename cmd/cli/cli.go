@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	m "github.com/sharithg/siphon/handlers"
+	m "github.com/sharithg/siphon/api"
 	"github.com/tkrajina/typescriptify-golang-structs/typescriptify"
 )
 
