@@ -1,6 +1,8 @@
 package storage
 
-import "database/sql"
+import (
+	"database/sql"
+)
 
 type Node struct {
 	Id      string
@@ -17,7 +19,7 @@ type NodeStore struct {
 }
 
 func (s *NodeStore) All() ([]Node, error) {
-	rows, err := s.db.Query("SELECT id, host, name, user, status FROM nodes")
+	rows, err := s.db.Query("SELECT id, host, name, username, status FROM nodes")
 	if err != nil {
 		return nil, err
 	}
@@ -58,6 +60,22 @@ func (s *NodeStore) Create(node Node) (string, error) {
 	}
 
 	return id, nil
+}
+
+func (s *NodeStore) GetById(id string) (*Node, error) {
+	var node Node
+
+	query := `
+	SELECT id, host, name, username, status, pem_file from nodes where id = $1
+	`
+
+	err := s.db.QueryRow(query, id).Scan(&node.Id, &node.Host, &node.Name, &node.User, &node.Status, &node.PemFile)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &node, nil
 }
 
 func (s *NodeStore) UpdateStatus(nodeID string, status string) error {

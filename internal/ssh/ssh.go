@@ -1,7 +1,10 @@
 package ssh
 
 import (
+	"bufio"
 	"fmt"
+	"io"
+	"log"
 	"os"
 
 	"golang.org/x/crypto/ssh"
@@ -54,6 +57,16 @@ func New(host string, user string, pemKeyContent []byte, ignoreHostKey bool) (*S
 	}, nil
 }
 
+func (s *SshConn) Dial() (*ssh.Client, error) {
+	conn, err := ssh.Dial("tcp", s.Host, s.conf)
+
+	if err != nil {
+		return nil, fmt.Errorf("error connecting to server: %w", err)
+	}
+
+	return conn, nil
+}
+
 func (s *SshConn) Ping() error {
 	fmt.Println("Connecting to:", s.Host, s.conf.User)
 	conn, err := ssh.Dial("tcp", s.Host, s.conf)
@@ -80,4 +93,41 @@ func knownHostsPath() (string, error) {
 	}
 
 	return homeDir + "/.ssh/known_hosts", nil
+}
+
+func runCommand(session *ssh.Session, command string) error {
+	stdout, err := session.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("failed to set up stdout for command: %w", err)
+	}
+
+	stderr, err := session.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("failed to set up stderr for command: %w", err)
+	}
+
+	if err := session.Start(command); err != nil {
+		return fmt.Errorf("failed to start command: %w", err)
+	}
+
+	// Stream both stdout and stderr
+	go streamOutput("stdout", stdout)
+	go streamOutput("stderr", stderr)
+
+	// Wait for the command to finish
+	if err := session.Wait(); err != nil {
+		return fmt.Errorf("failed to execute command: %w", err)
+	}
+
+	return nil
+}
+
+func streamOutput(name string, pipe io.Reader) {
+	scanner := bufio.NewScanner(pipe)
+	for scanner.Scan() {
+		log.Printf("[%s] %s\n", name, scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		log.Printf("error reading from %s: %v\n", name, err)
+	}
 }

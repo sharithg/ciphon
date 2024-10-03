@@ -1,8 +1,9 @@
 package api
 
 import (
-	"context"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -10,8 +11,9 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/sharithg/siphon/internal/ssh"
 	"github.com/sharithg/siphon/internal/storage"
-	"github.com/sharithg/siphon/ssh"
 )
 
 type Node struct {
@@ -23,8 +25,18 @@ type Node struct {
 	Status string `json:"status"`
 }
 
+func (app *Application) installTools(nodeId string, sshConn *ssh.SshConn) {
+	err := sshConn.InstallTools()
+	if err != nil {
+		log.Printf("Failed to install tools for node %s: %v", nodeId, err)
+		app.Store.Nodes.UpdateStatus(nodeId, "error")
+		return
+	}
+	log.Printf("Successfully installed tools for node %s", nodeId)
+	app.Store.Nodes.UpdateStatus(nodeId, "healthy")
+}
+
 func (app *Application) createNodeHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
 
 	fmt.Println("File Upload Endpoint Hit")
 
@@ -70,38 +82,25 @@ func (app *Application) createNodeHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	conn, err := ssh.New(host, user, fileBytes, true)
+	sshConn, err := ssh.New(host, user, fileBytes, true)
 	if err != nil {
 		log.Printf("Error establishing ssh conn: %v", err)
 		http.Error(w, "Error establishing ssh conn", http.StatusInternalServerError)
 		return
 	}
 
-	if err = conn.Ping(); err != nil {
+	if err = sshConn.Ping(); err != nil {
 		log.Printf("Error connecting to server: %v", err)
 		http.Error(w, "Error connecting to server", http.StatusInternalServerError)
 		return
 	}
 
-	_, err = tempFile.Write(fileBytes)
-	if err != nil {
-		log.Printf("Error writing to temporary PEM file: %v", err)
-		http.Error(w, "Error writing to temporary PEM file", http.StatusInternalServerError)
-		return
-	}
-
-	objectName := fmt.Sprintf("assets/%s/key.pem", name)
-	info, err := app.MinioStorage.Upload(ctx, "node-pem-files", objectName, tempFile.Name(), "application/x-x509-ca-ce")
-	if err != nil {
-		log.Printf("Error uploading PEM file to storage: %v", err)
-		http.Error(w, "Error uploading PEM file to storage", http.StatusInternalServerError)
-		return
-	}
+	pemFileEncoded := base64.StdEncoding.EncodeToString(fileBytes)
 
 	n := storage.Node{
 		Host:    host,
 		Name:    name,
-		PemFile: info.Key,
+		PemFile: pemFileEncoded,
 		User:    user,
 		Port:    port,
 	}
@@ -117,16 +116,39 @@ func (app *Application) createNodeHandler(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("Node added successfully"))
 
-	go func() {
-		err := ssh.InstallTools("", "", []byte(""))
-		if err != nil {
-			log.Printf("Failed to install tools for node %s: %v", id, err)
-			app.Store.Nodes.UpdateStatus(id, "error")
-			return
-		}
-		log.Printf("Successfully installed tools for node %s", id)
-		app.Store.Nodes.UpdateStatus(id, "healthy")
-	}()
+	go app.installTools(id, sshConn)
+
+}
+
+func (app *Application) installToolsForNode(w http.ResponseWriter, r *http.Request) {
+	idParam := chi.URLParam(r, "nodeId")
+
+	node, err := app.Store.Nodes.GetById(idParam)
+
+	if err != nil {
+		app.internalServerError(w, r, err)
+		return
+	}
+	fmt.Printf("%#v\n", node)
+	pemBytes, err := base64.StdEncoding.DecodeString(node.PemFile)
+	if err != nil {
+		app.internalServerError(w, r, fmt.Errorf("failed to decode PEM file: %w", err))
+		return
+	}
+
+	sshConn, err := ssh.New(node.Host, node.User, pemBytes, true)
+
+	if err != nil {
+		app.internalServerError(w, r, err)
+		return
+	}
+
+	if node == nil {
+		app.notFoundResponse(w, r, errors.New("node not found"))
+		return
+	}
+
+	go app.installTools(node.Id, sshConn)
 
 }
 

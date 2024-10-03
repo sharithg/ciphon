@@ -31,7 +31,7 @@ export const useAddNewNode = (input: { onSuccess?: () => Promise<void> }) => {
       formData.append("user", newNode.user);
       formData.append("port", newNode.port.toString());
 
-      return axios.post(`${API_URL}/node`, formData, {
+      return axios.post(`${API_URL}/nodes`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },

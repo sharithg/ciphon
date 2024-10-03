@@ -21,9 +21,13 @@ require (
 	github.com/alexedwards/scs v1.4.1 // indirect
 	github.com/bradleyfalzon/ghinstallation/v2 v2.11.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.3 // indirect
 	github.com/go-chi/chi/v5 v5.1.0 // indirect
 	github.com/go-chi/cors v1.2.1 // indirect
 	github.com/go-ini/ini v1.67.0 // indirect
+	github.com/go-playground/locales v0.14.1 // indirect
+	github.com/go-playground/universal-translator v0.18.1 // indirect
+	github.com/go-playground/validator/v10 v10.22.1 // indirect
 	github.com/goccy/go-json v0.10.3 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
@@ -34,6 +38,7 @@ require (
 	github.com/hashicorp/golang-lru v0.6.0 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.8 // indirect
+	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect

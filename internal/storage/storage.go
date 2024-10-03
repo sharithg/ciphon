@@ -5,6 +5,7 @@ import "database/sql"
 type Storage struct {
 	Nodes interface {
 		All() ([]Node, error)
+		GetById(id string) (*Node, error)
 		Create(node Node) (string, error)
 		UpdateStatus(nodeID string, status string) error
 	}

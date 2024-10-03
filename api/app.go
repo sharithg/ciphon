@@ -86,6 +86,7 @@ func (app *Application) Mount() http.Handler {
 		r.Route("/nodes", func(r chi.Router) {
 			r.Get("/", app.getNodesHandler)
 			r.Post("/", app.createNodeHandler)
+			r.Post("/{nodeId}", app.installToolsForNode)
 		})
 		r.Route("/repos", func(r chi.Router) {
 			r.Get("/", app.getReposHandler)
