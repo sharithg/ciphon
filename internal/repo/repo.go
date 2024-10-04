@@ -15,7 +15,6 @@
 package repo
 
 import (
-	"net/http"
 	"time"
 
 	"github.com/google/go-github/v65/github"
@@ -25,8 +24,8 @@ import (
 )
 
 type Github struct {
-	Handler http.Handler
-	Client  *github.Client
+	ClientCreator githubapp.ClientCreator
+	Client        *github.Client
 }
 
 func New(config GithubConfig) (*Github, error) {
@@ -47,13 +46,6 @@ func New(config GithubConfig) (*Github, error) {
 		return nil, err
 	}
 
-	prCommentHandler := &CommitHandler{
-		ClientCreator: cc,
-		Preamble:      config.PullRequestPreamble,
-	}
-
-	webhookHandler := githubapp.NewDefaultEventDispatcher(config.AppConfig, prCommentHandler)
-
 	client, err := cc.NewInstallationClient(config.InstallationId)
 
 	if err != nil {
@@ -61,7 +53,7 @@ func New(config GithubConfig) (*Github, error) {
 	}
 
 	return &Github{
-		Client:  client,
-		Handler: webhookHandler,
+		Client:        client,
+		ClientCreator: cc,
 	}, nil
 }

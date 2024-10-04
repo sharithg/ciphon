@@ -44,10 +44,15 @@ type Application struct {
 	Store        *storage.Storage
 	MinioStorage *minio.Storage
 	Github       *repo.Github
+	Wh           *GhWebhookHandler
 }
 
 func (app *Application) Mount() http.Handler {
 	r := chi.NewRouter()
+
+	handler := NewGhWebhookHandler(app.Github.ClientCreator, app.Config.Github.PullRequestPreamble, app)
+
+	webhookHandler := githubapp.NewDefaultEventDispatcher(app.Config.Github.AppConfig, handler)
 
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -82,7 +87,7 @@ func (app *Application) Mount() http.Handler {
 	// processing should be stopped.
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	r.Handle(githubapp.DefaultWebhookRoute, app.Github.Handler)
+	r.Handle(githubapp.DefaultWebhookRoute, webhookHandler)
 
 	r.Route("/v1", func(r chi.Router) {
 		r.Route("/nodes", func(r chi.Router) {
