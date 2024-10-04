@@ -2,54 +2,54 @@ package parser
 
 import (
 	"fmt"
-	"log"
-	"os"
 
 	"gopkg.in/yaml.v3"
 )
 
-type T struct {
-	A string
-	B struct {
-		RenamedC int   `yaml:"c"`
-		D        []int `yaml:",flow"`
+func ParseConfig(data string) (*Config, error) {
+	t := Config{}
+
+	err := yaml.Unmarshal([]byte(data), &t)
+	if err != nil {
+		return nil, err
 	}
+
+	return &t, nil
 }
 
-func ParseConfig() error {
-	data, err := os.ReadFile("/tmp/dat")
-
-	if err != nil {
-		return err
+func (c *Config) ValidateWorkflows() error {
+	for workflowName, workflow := range c.Workflows {
+		for _, jobName := range workflow.Jobs {
+			if _, exists := c.Jobs[jobName]; !exists {
+				return fmt.Errorf("workflow '%s' references undefined job '%s'", workflowName, jobName)
+			}
+		}
 	}
-
-	t := T{}
-
-	err = yaml.Unmarshal([]byte(data), &t)
-	if err != nil {
-		log.Fatalf("error: %v", err)
-	}
-	fmt.Printf("--- t:\n%v\n\n", t)
-
-	d, err := yaml.Marshal(&t)
-	if err != nil {
-		log.Fatalf("error: %v", err)
-	}
-	fmt.Printf("--- t dump:\n%s\n\n", string(d))
-
-	m := make(map[interface{}]interface{})
-
-	err = yaml.Unmarshal([]byte(data), &m)
-	if err != nil {
-		log.Fatalf("error: %v", err)
-	}
-	fmt.Printf("--- m:\n%v\n\n", m)
-
-	d, err = yaml.Marshal(&m)
-	if err != nil {
-		log.Fatalf("error: %v", err)
-	}
-	fmt.Printf("--- m dump:\n%s\n\n", string(d))
-
 	return nil
+}
+
+type JobWithName struct {
+	Job
+	Name string
+}
+
+func (c *Config) GetWorkflowJobs(workflowName string) ([]JobWithName, error) {
+	workflow, exists := c.Workflows[workflowName]
+	if !exists {
+		return nil, fmt.Errorf("workflow '%s' not found", workflowName)
+	}
+
+	var jobs []JobWithName
+	for _, jobName := range workflow.Jobs {
+		job, exists := c.Jobs[jobName]
+		if !exists {
+			return nil, fmt.Errorf("job '%s' not found in workflow '%s'", jobName, workflowName)
+		}
+		jobs = append(jobs, JobWithName{
+			Job:  job,
+			Name: jobName,
+		})
+	}
+
+	return jobs, nil
 }

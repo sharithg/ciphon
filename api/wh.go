@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"strings"
 
 	"github.com/google/go-github/v65/github"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/pkg/errors"
+	"github.com/sharithg/siphon/internal/parser"
+	"github.com/sharithg/siphon/internal/storage"
 )
 
 type GhWebhookHandler struct {
@@ -76,9 +79,109 @@ func (h *GhWebhookHandler) Handle(ctx context.Context, eventType, deliveryID str
 		return wrappedErrorWithLog(err, "failed to read config contents")
 	}
 
-	fmt.Println(config)
+	go h.handlePushEvent(event, config)
 
 	return nil
+}
+
+func (h *GhWebhookHandler) handlePushEvent(event github.PushEvent, configStr string) {
+
+	headCommit := event.HeadCommit
+
+	if headCommit == nil {
+		slog.Error("error parsing event, HeadCommit is nil")
+		return
+	}
+	pipelineRun := storage.PipelineRun{
+		CommitSHA:  *headCommit.ID,
+		ConfigFile: configStr,
+		Branch:     strings.Replace(*event.Ref, "refs/heads/", "", -1),
+		Status:     "received",
+	}
+
+	config, err := parser.ParseConfig(configStr)
+
+	if err != nil {
+		slog.Error("error parsing config", "error", err)
+		return
+	}
+
+	if err = config.ValidateWorkflows(); err != nil {
+		slog.Error("error validating config", "error", err)
+		return
+	}
+
+	pipelineId, err := h.app.Store.PipelineRunsStore.Create(pipelineRun)
+
+	if err != nil {
+		slog.Error("error creating pipeline run", "error", err)
+		return
+	}
+
+	for name := range config.Workflows {
+		workflowRun := storage.WorkflowRun{
+			Name:          name,
+			PipelineRunID: pipelineId,
+		}
+
+		workflowId, err := h.app.Store.WorkflowRunsStore.Create(workflowRun)
+
+		if err != nil {
+			slog.Error("error creating workflow", "error", err)
+			return
+		}
+
+		jobs, err := config.GetWorkflowJobs(name)
+
+		if err != nil {
+			slog.Error("error getting jobs for workflow", "error", err)
+			return
+		}
+
+		for _, job := range jobs {
+			jobRun := storage.JobRun{
+				WorkflowID: workflowId,
+				Name:       job.Name,
+				Docker:     job.Docker,
+				Node:       job.Node,
+			}
+			jobId, err := h.app.Store.JobRunsStore.Create(jobRun)
+
+			if err != nil {
+				slog.Error("error creating job", "error", err)
+				return
+			}
+
+			for _, step := range job.Steps {
+				var restoreCache []string
+				var paths []string
+
+				if step.Step.RestoreCache != nil {
+					restoreCache = step.Step.RestoreCache.Keys
+				}
+				if step.Step.SaveCache != nil {
+					paths = step.Step.SaveCache.Paths
+				}
+
+				stepRun := storage.StepRun{
+					JobID:   jobId,
+					Type:    step.Step.Type,
+					Name:    step.Step.Name,
+					Command: step.Step.Command,
+					Keys:    restoreCache,
+					Paths:   paths,
+				}
+
+				_, err := h.app.Store.StepRunsStore.Create(stepRun)
+
+				if err != nil {
+					slog.Error("error creating step", "error", err)
+					return
+				}
+			}
+		}
+
+	}
 }
 
 func wrappedErrorWithLog(err error, message string) error {

@@ -3,6 +3,8 @@ package storage
 import (
 	"database/sql"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 type StepRun struct {
@@ -28,7 +30,7 @@ func (s *StepRunStore) Create(stepRun StepRun) (string, error) {
 	VALUES ($1, $2, $3, $4, $5, $6)
 	RETURNING id
 	`
-	err := s.db.QueryRow(query, stepRun.JobID, stepRun.Type, stepRun.Name, stepRun.Command, stepRun.Keys, stepRun.Paths).Scan(&id)
+	err := s.db.QueryRow(query, stepRun.JobID, stepRun.Type, stepRun.Name, stepRun.Command, pq.Array(stepRun.Keys), pq.Array(stepRun.Paths)).Scan(&id)
 	if err != nil {
 		return "", err
 	}
