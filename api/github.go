@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/google/go-github/v65/github"
@@ -123,8 +122,6 @@ func (app *Application) connectRepoHandler(w http.ResponseWriter, r *http.Reques
 		app.internalServerError(w, r, err)
 		return
 	}
-
-	fmt.Printf("Repo: %v\n", repo)
 
 	app.jsonResponse(w, http.StatusOK, id)
 }

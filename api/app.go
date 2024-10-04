@@ -98,7 +98,10 @@ func (app *Application) Mount() http.Handler {
 		r.Route("/repos", func(r chi.Router) {
 			r.Get("/", app.getReposHandler)
 			r.Post("/connect", app.connectRepoHandler)
-			r.Get("/new-repos", app.getNewReposHandler)
+			r.Get("/new", app.getNewReposHandler)
+		})
+		r.Route("/workflows", func(r chi.Router) {
+			r.Get("/", app.getWorkflows)
 		})
 	})
 

@@ -97,6 +97,7 @@ func (h *GhWebhookHandler) handlePushEvent(event github.PushEvent, configStr str
 		ConfigFile: configStr,
 		Branch:     strings.Replace(*event.Ref, "refs/heads/", "", -1),
 		Status:     "received",
+		RepoId:     *event.Repo.ID,
 	}
 
 	config, err := parser.ParseConfig(configStr)

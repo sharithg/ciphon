@@ -33,6 +33,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { format } from "date-fns";
+import { useGetWorkflows } from "@/hooks/react-query/use-workflows";
 
 export const Route = createLazyFileRoute("/pipelines/")({
   component: Pipelines,
@@ -92,7 +93,7 @@ const pipelineRuns: PipelineRun[] = [
   },
 ];
 
-const StatusBadge = ({ status }: { status: PipelineRun["status"] }) => {
+const StatusBadge = ({ status }: { status: string }) => {
   const statusConfig = {
     success: {
       label: "Success",
@@ -110,9 +111,19 @@ const StatusBadge = ({ status }: { status: PipelineRun["status"] }) => {
       icon: AlertCircleIcon,
       className: "bg-yellow-500",
     },
+    not_started: {
+      label: "Not Started",
+      icon: AlertCircleIcon,
+      className: "bg-gray-500",
+    },
   };
 
-  const { label, icon: Icon, className } = statusConfig[status];
+  let statusKey = status as keyof typeof statusConfig;
+  if (!status) {
+    statusKey = "not_started";
+  }
+
+  const { label, icon: Icon, className } = statusConfig[statusKey];
 
   return (
     <Badge
@@ -129,6 +140,7 @@ function Pipelines() {
   const [selectedProject, setSelectedProject] = useState<string | undefined>();
   const [selectedBranch, setSelectedBranch] = useState<string | undefined>();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  const { data } = useGetWorkflows();
 
   const projects = Array.from(new Set(pipelineRuns.map((run) => run.project)));
   const branches = Array.from(new Set(pipelineRuns.map((run) => run.branch)));
@@ -206,13 +218,13 @@ function Pipelines() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {filteredRuns.map((run) => (
-            <TableRow key={run.id}>
-              <TableCell className="font-medium">{run.project}</TableCell>
+          {(data?.data ?? []).map((run) => (
+            <TableRow key={run.workflowId}>
+              <TableCell className="font-medium">{run.repoName}</TableCell>
               <TableCell>
                 <StatusBadge status={run.status} />
               </TableCell>
-              <TableCell>{run.workflow}</TableCell>
+              <TableCell>{run.workflowName}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
                   <GitBranchIcon className="w-4 h-4" />
@@ -220,10 +232,10 @@ function Pipelines() {
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <GitCommitIcon className="w-4 h-4" />
-                  <span>{run.commit}</span>
+                  <span>{run.commitSha.slice(0, 7)}</span>
                 </div>
               </TableCell>
-              <TableCell>{run.timestamp}</TableCell>
+              <TableCell>{run.createdAt}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-1">
                   <ClockIcon className="w-4 h-4" />

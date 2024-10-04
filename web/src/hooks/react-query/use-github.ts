@@ -36,7 +36,7 @@ export const useGetRepos = () => {
 export const useGetNewRepos = () => {
   return useQuery({
     queryKey: ["new-repos"],
-    queryFn: () => fetchData<{ data: TGithubRepo[] }>(`${API_URL}/new-repos`),
+    queryFn: () => fetchData<{ data: TGithubRepo[] }>(`${API_URL}/repos/new`),
   });
 };
 
