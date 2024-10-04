@@ -9,10 +9,15 @@ type Storage struct {
 		Create(node Node) (string, error)
 		UpdateStatus(nodeID string, status string) error
 	}
+	Repos interface {
+		All() ([]ListRepo, error)
+		Create(repo CreateRepo) (string, error)
+	}
 }
 
 func NewStorage(db *sql.DB) *Storage {
 	return &Storage{
 		Nodes: &NodeStore{db},
+		Repos: &RepoStore{db},
 	}
 }

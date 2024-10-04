@@ -1,7 +1,6 @@
 import React from "react";
 import { createLazyFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Card,
@@ -10,13 +9,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  GitHubLogoIcon,
-  MagnifyingGlassIcon,
-  PlusIcon,
-} from "@radix-ui/react-icons";
+import { GitHubLogoIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons";
 import { useGetRepos } from "../hooks/react-query/use-github";
 import { formatDistance } from "date-fns";
+import ConnectRepo from "../components/connect-repo";
 
 export const Route = createLazyFileRoute("/projects")({
   component: Projects,
@@ -29,18 +25,11 @@ function Projects() {
 
   const repoData = repos.data?.data ?? [];
 
-  const handleConnectNewProject = () => {
-    // Implement the logic to connect a new project
-    console.log("Connecting new project...");
-  };
-
   return (
     <div className="space-y-4 pt-5">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Projects</h2>
-        <Button onClick={handleConnectNewProject}>
-          <PlusIcon className="mr-2 h-4 w-4" /> Connect New Project
-        </Button>
+        <ConnectRepo />
       </div>
       <div className="relative">
         <MagnifyingGlassIcon className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -53,7 +42,7 @@ function Projects() {
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {repoData.map((project) => (
-          <Card key={project.id}>
+          <Card key={project.repoId}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
                 {project.name}
@@ -63,8 +52,8 @@ function Projects() {
             <CardContent>
               <CardDescription>{project.description}</CardDescription>
               <p className="text-xs text-muted-foreground mt-2">
-                Last updated:{" "}
-                {formatDistance(new Date(project.lastUpdated), new Date(), {
+                Created:{" "}
+                {formatDistance(new Date(project.repoCreatedAt), new Date(), {
                   addSuffix: true,
                 })}
               </p>

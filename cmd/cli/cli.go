@@ -14,7 +14,7 @@ func main() {
 	t.BackupDir = ""
 
 	t.Add(m.Node{})
-	t.Add(m.GithubRepo{})
+	t.Add(m.GithubRepoResponse{})
 
 	err := t.ConvertToFile("../client/src/@types/api.ts")
 	if err != nil {

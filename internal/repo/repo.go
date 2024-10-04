@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package github
+package repo
 
 import (
 	"net/http"
@@ -22,7 +22,6 @@ import (
 	"github.com/gregjones/httpcache"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/rcrowley/go-metrics"
-	"github.com/sharithg/siphon/api"
 )
 
 type Github struct {
@@ -30,7 +29,7 @@ type Github struct {
 	Client  *github.Client
 }
 
-func New(config api.GithubConfig) (*github.Client, error) {
+func New(config GithubConfig) (*Github, error) {
 
 	metricsRegistry := metrics.DefaultRegistry
 
@@ -53,7 +52,7 @@ func New(config api.GithubConfig) (*github.Client, error) {
 		Preamble:      config.PullRequestPreamble,
 	}
 
-	_ = githubapp.NewDefaultEventDispatcher(config.AppConfig, prCommentHandler)
+	webhookHandler := githubapp.NewDefaultEventDispatcher(config.AppConfig, prCommentHandler)
 
 	client, err := cc.NewInstallationClient(config.InstallationId)
 
@@ -61,5 +60,8 @@ func New(config api.GithubConfig) (*github.Client, error) {
 		return nil, err
 	}
 
-	return client, nil
+	return &Github{
+		Client:  client,
+		Handler: webhookHandler,
+	}, nil
 }

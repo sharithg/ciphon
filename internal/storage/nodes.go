@@ -37,6 +37,7 @@ func (s *NodeStore) All() ([]Node, error) {
 
 		nodes = append(nodes, node)
 	}
+
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}

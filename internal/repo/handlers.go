@@ -1,4 +1,4 @@
-package github
+package repo
 
 import (
 	"context"
@@ -27,6 +27,8 @@ func (h *CommitHandler) Handle(ctx context.Context, eventType, deliveryID string
 	if err := json.Unmarshal(payload, &event); err != nil {
 		return errors.Wrap(err, "failed to parse issue comment event payload")
 	}
+
+	fmt.Println(string(payload))
 
 	return nil
 }

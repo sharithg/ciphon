@@ -1,4 +1,4 @@
-package github
+package repo
 
 import (
 	"fmt"

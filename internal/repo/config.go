@@ -1,4 +1,4 @@
-package api
+package repo
 
 import (
 	"fmt"
@@ -7,6 +7,21 @@ import (
 
 	"github.com/palantir/go-githubapp/githubapp"
 )
+
+type GithubConfig struct {
+	AppConfig           githubapp.Config
+	InstallationId      int64
+	PullRequestPreamble string
+}
+
+type GithubOAuth struct {
+	ClientID     string `yaml:"client_id" json:"clientId"`
+	ClientSecret string `yaml:"client_secret" json:"clientSecret"`
+}
+
+type GhApplicationConfig struct {
+	PullRequestPreamble string
+}
 
 func ReadGithubConfig() (*GithubConfig, error) {
 	// address := os.Getenv("SERVER_ADDRESS")
@@ -49,6 +64,7 @@ func ReadGithubConfig() (*GithubConfig, error) {
 				ClientID:     clientId,
 				ClientSecret: clientSecret,
 			},
+			V3APIURL: "https://api.github.com/",
 		},
 		InstallationId:      installationId,
 		PullRequestPreamble: pullRequestPreamble,

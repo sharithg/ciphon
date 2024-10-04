@@ -13,15 +13,15 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"github.com/google/go-github/v65/github"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/sharithg/siphon/internal/env"
+	"github.com/sharithg/siphon/internal/repo"
 	"github.com/sharithg/siphon/internal/storage"
 	"github.com/sharithg/siphon/internal/storage/minio"
 )
 
 type Config struct {
-	Github GithubConfig
+	Github repo.GithubConfig
 	Db     DbConfig
 	Addr   string
 	Env    string
@@ -30,21 +30,6 @@ type Config struct {
 type HTTPConfig struct {
 	Address string
 	Port    int
-}
-
-type GithubConfig struct {
-	AppConfig           githubapp.Config
-	InstallationId      int64
-	PullRequestPreamble string
-}
-
-type GithubOAuth struct {
-	ClientID     string `yaml:"client_id" json:"clientId"`
-	ClientSecret string `yaml:"client_secret" json:"clientSecret"`
-}
-
-type GhApplicationConfig struct {
-	PullRequestPreamble string
 }
 
 type DbConfig struct {
@@ -58,7 +43,7 @@ type Application struct {
 	Config       Config
 	Store        *storage.Storage
 	MinioStorage *minio.Storage
-	GithubClient *github.Client
+	Github       *repo.Github
 }
 
 func (app *Application) Mount() http.Handler {
@@ -66,7 +51,22 @@ func (app *Application) Mount() http.Handler {
 
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger)
+
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ignoredPaths := map[string]struct{}{
+				"/v1/nodes": {},
+			}
+
+			if _, ok := ignoredPaths[r.URL.Path]; ok {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			middleware.Logger(next).ServeHTTP(w, r)
+		})
+	})
+
 	r.Use(middleware.Recoverer)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{env.GetString("CORS_ALLOWED_ORIGIN", false, "http://localhost:5173")},
@@ -82,6 +82,8 @@ func (app *Application) Mount() http.Handler {
 	// processing should be stopped.
 	r.Use(middleware.Timeout(60 * time.Second))
 
+	r.Handle(githubapp.DefaultWebhookRoute, app.Github.Handler)
+
 	r.Route("/v1", func(r chi.Router) {
 		r.Route("/nodes", func(r chi.Router) {
 			r.Get("/", app.getNodesHandler)
@@ -90,6 +92,8 @@ func (app *Application) Mount() http.Handler {
 		})
 		r.Route("/repos", func(r chi.Router) {
 			r.Get("/", app.getReposHandler)
+			r.Post("/connect", app.connectRepoHandler)
+			r.Get("/new-repos", app.getNewReposHandler)
 		})
 	})
 

@@ -8,9 +8,3 @@ export interface Node {
   port: number;
   status: string;
 }
-export interface GithubRepo {
-  id: number;
-  name: string;
-  description: string;
-  lastUpdated: string;
-}

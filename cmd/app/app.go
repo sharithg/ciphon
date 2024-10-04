@@ -9,7 +9,7 @@ import (
 	"github.com/sharithg/siphon/api"
 	"github.com/sharithg/siphon/internal/db"
 	"github.com/sharithg/siphon/internal/env"
-	"github.com/sharithg/siphon/internal/github"
+	"github.com/sharithg/siphon/internal/repo"
 	"github.com/sharithg/siphon/internal/storage"
 	"github.com/sharithg/siphon/internal/storage/minio"
 )
@@ -20,7 +20,7 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	ghCfg, err := api.ReadGithubConfig()
+	ghCfg, err := repo.ReadGithubConfig()
 
 	if err != nil {
 		log.Fatal("error reading github config: ", err)
@@ -61,7 +61,7 @@ func main() {
 		log.Fatal("error configuring minio", err)
 	}
 
-	ghClient, err := github.New(cfg.Github)
+	ghClient, err := repo.New(cfg.Github)
 
 	if err != nil {
 		log.Fatal("error configuring github client", err)
@@ -78,7 +78,7 @@ func main() {
 		Config:       cfg,
 		Store:        store,
 		MinioStorage: minioStorage,
-		GithubClient: ghClient,
+		Github:       ghClient,
 	}
 
 	mux := app.Mount()
