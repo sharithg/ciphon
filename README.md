@@ -4,4 +4,4 @@
 
 # About
 
-Ciphon is a CI/CD platform meant to make it simple for developers to create and manage up their own CI infrastructure without hassle.
+Ciphon is a CI/CD platform meant to make it simple for developers to create and manage up their own CI infrastructure without hassle 💻 🚀.
