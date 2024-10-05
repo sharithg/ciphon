@@ -17,6 +17,9 @@ import {
   XCircleIcon,
   AlertCircleIcon,
   ClockIcon,
+  ChevronRight,
+  RefreshCcw,
+  Play,
 } from "lucide-react";
 import {
   Select,
@@ -208,38 +211,53 @@ function Pipelines() {
       </div>
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead>Project</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Workflow</TableHead>
-            <TableHead>Trigger</TableHead>
-            <TableHead>Timestamp</TableHead>
-            <TableHead>Duration</TableHead>
+          <TableRow className="h-8">
+            {" "}
+            {/* Reduce height */}
+            <TableHead className="p-2 text-xs">Project</TableHead>
+            <TableHead className="p-2 text-xs">Status</TableHead>
+            <TableHead className="p-2 text-xs">Workflow</TableHead>
+            <TableHead className="p-2 text-xs">Trigger</TableHead>
+            <TableHead className="p-2 text-xs">Timestamp</TableHead>
+            <TableHead className="p-2 text-xs">Duration</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {(data?.data ?? []).map((run) => (
-            <TableRow key={run.workflowId}>
-              <TableCell className="font-medium">{run.repoName}</TableCell>
-              <TableCell>
+            <TableRow key={run.workflowId} className="h-8">
+              {" "}
+              {/* Reduce height */}
+              <TableCell className="p-2 text-sm font-medium">
+                {run.repoName}
+              </TableCell>
+              <TableCell className="p-2 text-sm">
                 <StatusBadge status={run.status} />
               </TableCell>
-              <TableCell>{run.workflowName}</TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <GitBranchIcon className="w-4 h-4" />
+              <TableCell className="p-2 text-sm">{run.workflowName}</TableCell>
+              <TableCell className="p-2 text-sm">
+                <div className="flex items-center gap-1">
+                  <GitBranchIcon className="w-3 h-3" />
                   <span>{run.branch}</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <GitCommitIcon className="w-4 h-4" />
+                <div className="flex items-center gap-1 text-xs text-gray-500">
+                  <GitCommitIcon className="w-3 h-3" />
                   <span>{run.commitSha.slice(0, 7)}</span>
                 </div>
               </TableCell>
-              <TableCell>{run.createdAt}</TableCell>
-              <TableCell>
+              <TableCell className="p-2 text-sm">
+                {format(new Date(run.createdAt), "MMMM do, yyyy 'at' hh:mm a")}
+              </TableCell>
+              <TableCell className="p-2 text-sm">
                 <div className="flex items-center gap-1">
-                  <ClockIcon className="w-4 h-4" />
+                  <ClockIcon className="w-3 h-3" />
                   <span>{run.duration}</span>
+                </div>
+              </TableCell>
+              <TableCell className="p-2 text-sm">
+                <div className="flex items-center gap-1">
+                  <Button variant="outline" size="icon">
+                    <Play className="h-4 w-4" />
+                  </Button>
                 </div>
               </TableCell>
             </TableRow>

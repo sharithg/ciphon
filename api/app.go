@@ -102,6 +102,7 @@ func (app *Application) Mount() http.Handler {
 		})
 		r.Route("/workflows", func(r chi.Router) {
 			r.Get("/", app.getWorkflows)
+			r.Post("/trigger/{workflowId}", app.triggerWorkflow)
 		})
 	})
 

@@ -57,14 +57,14 @@ func (h *GhWebhookHandler) Handle(ctx context.Context, eventType, deliveryID str
 	owner := event.Sender.Login
 	repo := event.Repo.Name
 
-	headCommit := event.Ref
+	headCommit := event.HeadCommit
 
 	if headCommit == nil {
 		return errorWithLog("head commit null")
 	}
 
 	opts := &github.RepositoryContentGetOptions{
-		Ref: *headCommit,
+		Ref: *headCommit.ID,
 	}
 
 	rc, _, err := h.app.Github.Client.Repositories.DownloadContents(ctx, *owner, *repo, ".siphon/pipeline.yaml", opts)
@@ -153,7 +153,7 @@ func (h *GhWebhookHandler) handlePushEvent(event github.PushEvent, configStr str
 				return
 			}
 
-			for _, step := range job.Steps {
+			for idx, step := range job.Steps {
 				var restoreCache []string
 				var paths []string
 
@@ -165,12 +165,13 @@ func (h *GhWebhookHandler) handlePushEvent(event github.PushEvent, configStr str
 				}
 
 				stepRun := storage.StepRun{
-					JobID:   jobId,
-					Type:    step.Step.Type,
-					Name:    step.Step.Name,
-					Command: step.Step.Command,
-					Keys:    restoreCache,
-					Paths:   paths,
+					JobID:     jobId,
+					Type:      step.Step.Type,
+					Name:      step.Step.Name,
+					Command:   step.Step.Command,
+					Keys:      restoreCache,
+					Paths:     paths,
+					StepOrder: idx,
 				}
 
 				_, err := h.app.Store.StepRunsStore.Create(stepRun)

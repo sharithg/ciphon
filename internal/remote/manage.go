@@ -1,4 +1,4 @@
-package ssh
+package remote
 
 import (
 	"fmt"
@@ -38,7 +38,7 @@ func (s *SshConn) InstallTools() error {
 	`
 	fmt.Printf("dial took %v\n", time.Since(start))
 
-	if err := runCommand(session, command); err != nil {
+	if err := RunCommand(session, command); err != nil {
 		return err
 	}
 

@@ -12,7 +12,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/sharithg/siphon/internal/ssh"
+	"github.com/sharithg/siphon/internal/remote"
 	"github.com/sharithg/siphon/internal/storage"
 )
 
@@ -25,7 +25,7 @@ type Node struct {
 	Status string `json:"status"`
 }
 
-func (app *Application) installTools(nodeId string, sshConn *ssh.SshConn) {
+func (app *Application) installTools(nodeId string, sshConn *remote.SshConn) {
 	err := sshConn.InstallTools()
 	if err != nil {
 		log.Printf("Failed to install tools for node %s: %v", nodeId, err)
@@ -82,7 +82,7 @@ func (app *Application) createNodeHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	sshConn, err := ssh.New(host, user, fileBytes, true)
+	sshConn, err := remote.New(host, user, fileBytes, true)
 	if err != nil {
 		log.Printf("Error establishing ssh conn: %v", err)
 		http.Error(w, "Error establishing ssh conn", http.StatusInternalServerError)
@@ -136,7 +136,7 @@ func (app *Application) installToolsForNode(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	sshConn, err := ssh.New(node.Host, node.User, pemBytes, true)
+	sshConn, err := remote.New(node.Host, node.User, pemBytes, true)
 
 	if err != nil {
 		app.internalServerError(w, r, err)

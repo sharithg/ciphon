@@ -19,7 +19,15 @@ type NodeStore struct {
 }
 
 func (s *NodeStore) All() ([]Node, error) {
-	rows, err := s.db.Query("SELECT id, host, name, username, status FROM nodes")
+	rows, err := s.db.Query(`
+		SELECT id,
+			host,
+			name,
+			username,
+			status,
+			convert_from(decode(pem_file, 'base64'), 'UTF8') as pem_file
+		FROM nodes
+	`)
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +38,7 @@ func (s *NodeStore) All() ([]Node, error) {
 	for rows.Next() {
 		var node Node
 
-		err := rows.Scan(&node.Id, &node.Host, &node.Name, &node.User, &node.Status)
+		err := rows.Scan(&node.Id, &node.Host, &node.Name, &node.User, &node.Status, &node.PemFile)
 		if err != nil {
 			return nil, err
 		}

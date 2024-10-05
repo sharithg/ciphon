@@ -1,15 +1,20 @@
-package ssh
+package remote
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"log"
 	"os"
+	"sync"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 )
+
+var Green = "\033[32m"
+var Reset = "\033[0m"
 
 type SshConn struct {
 	Host string
@@ -95,7 +100,27 @@ func knownHostsPath() (string, error) {
 	return homeDir + "/.ssh/known_hosts", nil
 }
 
-func runCommand(session *ssh.Session, command string) error {
+func streamOutput(name string, pipe io.Reader) {
+	buf := make([]byte, 1024)
+	for {
+		n, err := pipe.Read(buf)
+		if n > 0 {
+			fmt.Printf("[%s] %s", name, buf[:n])
+		}
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			log.Printf("Error reading from %s: %v", name, err)
+			break
+		}
+	}
+}
+
+func RunCommand(session *ssh.Session, command string) error {
+
+	fmt.Println(Green + command + Reset)
+
 	stdout, err := session.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("failed to set up stdout for command: %w", err)
@@ -106,28 +131,51 @@ func runCommand(session *ssh.Session, command string) error {
 		return fmt.Errorf("failed to set up stderr for command: %w", err)
 	}
 
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		streamOutput("stdout", stdout)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		streamOutput("stderr", stderr)
+	}()
+
 	if err := session.Start(command); err != nil {
 		return fmt.Errorf("failed to start command: %w", err)
 	}
 
-	// Stream both stdout and stderr
-	go streamOutput("stdout", stdout)
-	go streamOutput("stderr", stderr)
-
-	// Wait for the command to finish
 	if err := session.Wait(); err != nil {
 		return fmt.Errorf("failed to execute command: %w", err)
 	}
 
+	wg.Wait()
+
 	return nil
 }
 
-func streamOutput(name string, pipe io.Reader) {
-	scanner := bufio.NewScanner(pipe)
-	for scanner.Scan() {
-		log.Printf("[%s] %s\n", name, scanner.Text())
+func GenerateJWTToken(pemContent []byte, clientID string) (string, error) {
+	signingKey, err := jwt.ParseRSAPrivateKeyFromPEM(pemContent)
+	if err != nil {
+		return "", err
 	}
-	if err := scanner.Err(); err != nil {
-		log.Printf("error reading from %s: %v\n", name, err)
+
+	now := time.Now().Unix()
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
+		"iat": now,
+		"exp": now + 600,
+		"iss": clientID,
+	})
+
+	signedToken, err := token.SignedString(signingKey)
+	if err != nil {
+		return "", err
 	}
+
+	return signedToken, nil
 }

@@ -19,6 +19,7 @@ type Storage struct {
 	WorkflowRunsStore interface {
 		Create(workflowRun WorkflowRun) (string, error)
 		GetWorkflowRuns() ([]WorkflowRunInfo, error)
+		GetById(id string) ([]WorkflowRunSteps, error)
 	}
 	JobRunsStore interface {
 		Create(jobRun JobRun) (string, error)

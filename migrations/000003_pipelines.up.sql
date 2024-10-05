@@ -34,6 +34,7 @@ CREATE TABLE job_runs (
 CREATE TABLE step_runs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     job_id UUID REFERENCES job_runs(id) ON DELETE CASCADE,
+    step_order INT,
     type VARCHAR(255) NOT NULL,
     name VARCHAR(255),
     status VARCHAR(255),
