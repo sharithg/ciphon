@@ -17,8 +17,6 @@ import {
   XCircleIcon,
   AlertCircleIcon,
   ClockIcon,
-  ChevronRight,
-  RefreshCcw,
   Play,
 } from "lucide-react";
 import {
@@ -140,21 +138,21 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 function Pipelines() {
-  const [selectedProject, setSelectedProject] = useState<string | undefined>();
-  const [selectedBranch, setSelectedBranch] = useState<string | undefined>();
+  const [, setSelectedProject] = useState<string | undefined>();
+  const [, setSelectedBranch] = useState<string | undefined>();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const { data } = useGetWorkflows();
 
   const projects = Array.from(new Set(pipelineRuns.map((run) => run.project)));
   const branches = Array.from(new Set(pipelineRuns.map((run) => run.branch)));
 
-  const filteredRuns = pipelineRuns.filter(
-    (run) =>
-      (!selectedProject || run.project === selectedProject) &&
-      (!selectedBranch || run.branch === selectedBranch) &&
-      (!selectedDate ||
-        run.timestamp.startsWith(format(selectedDate, "yyyy-MM-dd")))
-  );
+  // const filteredRuns = pipelineRuns.filter(
+  //   (run) =>
+  //     (!selectedProject || run.project === selectedProject) &&
+  //     (!selectedBranch || run.branch === selectedBranch) &&
+  //     (!selectedDate ||
+  //       run.timestamp.startsWith(format(selectedDate, "yyyy-MM-dd")))
+  // );
 
   return (
     <div className="container mx-auto py-10">
