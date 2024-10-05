@@ -41,6 +41,7 @@ type WorkflowRunSteps struct {
 	Url       string  `db:"url"`
 	RepoName  string  `db:"repo_name"`
 	CommitSHA string  `db:"commit_sha"`
+	Branch    string  `db:"branch"`
 	Docker    string  `db:"docker"`
 }
 
@@ -112,6 +113,7 @@ func (s *WorkflowRunStore) GetById(id string) ([]WorkflowRunSteps, error) {
 			r.url,
 			r.name as repo_name,
 			pr.commit_sha,
+			pr.branch,
 			j.docker
 		from workflow_runs w
 			join pipeline_runs pr on pr.id = w.pipeline_run_id
@@ -142,6 +144,7 @@ func (s *WorkflowRunStore) GetById(id string) ([]WorkflowRunSteps, error) {
 			&step.Url,
 			&step.RepoName,
 			&step.CommitSHA,
+			&step.Branch,
 			&step.Docker,
 		)
 		if err != nil {
