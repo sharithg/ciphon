@@ -1,20 +1,27 @@
 import { useEffect } from "react";
+import { API_URL } from "./constants";
 
-export const useSse = (input: {
-  url: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  onMessage: (data: any) => void;
-}) => {
+interface WorkflowEvent {
+  type: string;
+}
+
+type EventHandler = (event: WorkflowEvent) => void;
+
+const useWorkflowEvents = (handleEvent: EventHandler) => {
   useEffect(() => {
-    const evtSource = new EventSource(input.url);
-    evtSource.onmessage = (event) => {
+    const evtSource = new EventSource(`${API_URL}/workflows/run-events`);
+
+    evtSource.onmessage = (event: MessageEvent) => {
       if (event.data) {
-        input.onMessage(JSON.parse(event.data));
+        const data: WorkflowEvent = JSON.parse(event.data);
+        handleEvent(data);
       }
     };
 
     return () => {
       evtSource.close();
     };
-  }, [input]);
+  }, [handleEvent]);
 };
+
+export default useWorkflowEvents;

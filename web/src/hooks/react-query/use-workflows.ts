@@ -1,6 +1,6 @@
 import { API_URL } from "./constants";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { fetchData } from ".";
+import { fetchData, WithData } from ".";
 import axios from "axios";
 
 type WorklfowRun = {
@@ -15,10 +15,15 @@ type WorklfowRun = {
   duration: number | null;
 };
 
+type Job = {
+  id: string;
+  name: string;
+  status: string;
+};
 export const useGetWorkflows = () => {
   return useQuery({
-    queryKey: ["nodes"],
-    queryFn: () => fetchData<{ data: WorklfowRun[] }>(`${API_URL}/workflows`),
+    queryKey: ["workflows"],
+    queryFn: () => fetchData<WithData<WorklfowRun[]>>(`${API_URL}/workflows`),
   });
 };
 
@@ -29,4 +34,12 @@ export const useRunWorkflow = () => {
     },
   });
   return mutation;
+};
+
+export const useGetJobs = (workflowId: string) => {
+  return useQuery({
+    queryKey: [`workflows/${workflowId}/jobs`],
+    queryFn: () =>
+      fetchData<WithData<Job[]>>(`${API_URL}/workflows/${workflowId}/jobs`),
+  });
 };

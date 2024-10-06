@@ -4,3 +4,5 @@ export const fetchData = async <T>(url: string): Promise<T> => {
   const response: AxiosResponse<T> = await axios.get(url);
   return response.data;
 };
+
+export type WithData<T> = { data: T };

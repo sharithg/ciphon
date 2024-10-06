@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -36,7 +36,9 @@ import {
   useGetWorkflows,
   useRunWorkflow,
 } from "@/hooks/react-query/use-workflows";
-import { API_URL } from "../../hooks/react-query/constants";
+import { Link } from "@tanstack/react-router";
+import { cn } from "../../lib/utils";
+import useWorkflowEvents from "../../hooks/react-query/use-sse";
 
 const StatusBadge = ({ status }: { status: string }) => {
   const statusConfig = {
@@ -88,30 +90,11 @@ const Pipelines = () => {
   const { data, refetch } = useGetWorkflows();
   const mutation = useRunWorkflow();
 
-  useEffect(() => {
-    const evtSource = new EventSource(`${API_URL}/workflows/run-events`);
-    evtSource.onmessage = (event) => {
-      if (event.data) {
-        console.log(JSON.parse(event.data));
-        refetch();
-      }
-    };
-
-    return () => {
-      evtSource.close();
-    };
-  }, []);
-
-  //   const projects = Array.from(new Set(pipelineRuns.map((run) => run.project)));
-  //   const branches = Array.from(new Set(pipelineRuns.map((run) => run.branch)));
-
-  // const filteredRuns = pipelineRuns.filter(
-  //   (run) =>
-  //     (!selectedProject || run.project === selectedProject) &&
-  //     (!selectedBranch || run.branch === selectedBranch) &&
-  //     (!selectedDate ||
-  //       run.timestamp.startsWith(format(selectedDate, "yyyy-MM-dd")))
-  // );
+  useWorkflowEvents((event) => {
+    if (event.type === "workflow") {
+      refetch();
+    }
+  });
 
   return (
     <div className="container mx-auto py-10">
@@ -182,15 +165,23 @@ const Pipelines = () => {
         <TableBody>
           {(data?.data ?? []).map((run) => (
             <TableRow key={run.workflowId} className="h-8">
-              {" "}
-              {/* Reduce height */}
               <TableCell className="p-2 text-sm font-medium">
                 {run.repoName}
               </TableCell>
               <TableCell className="p-2 text-sm">
                 <StatusBadge status={run.status} />
               </TableCell>
-              <TableCell className="p-2 text-sm">{run.workflowName}</TableCell>
+              <TableCell className="p-2 text-md">
+                <Link
+                  disabled={!run.status}
+                  to={`/pipelines/workflows/${run.workflowId}`}
+                  className={cn(
+                    run.status ? "text-blue-500 hover:underline" : ""
+                  )}
+                >
+                  {run.workflowName}
+                </Link>
+              </TableCell>
               <TableCell className="p-2 text-sm">
                 <div className="flex items-center gap-1">
                   <GitBranchIcon className="w-3 h-3" />
@@ -220,8 +211,9 @@ const Pipelines = () => {
                     variant="outline"
                     size="icon"
                     disabled={run.status === "running" || mutation.isLoading}
-                    onClick={() => {
-                      mutation.mutate(run.workflowId);
+                    onClick={async () => {
+                      await mutation.mutateAsync(run.workflowId);
+                      refetch();
                     }}
                   >
                     <Play className="h-4 w-4" />

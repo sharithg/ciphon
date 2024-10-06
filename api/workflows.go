@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -11,15 +10,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/sharithg/siphon/internal/workflow"
 )
-
-type WorkflowRun struct {
-	Id     string
-	Status string
-}
-
-func (w WorkflowRun) MarshalBinary() ([]byte, error) {
-	return json.Marshal(w)
-}
 
 func (app *Application) getWorkflows(w http.ResponseWriter, r *http.Request) {
 	workflows, err := app.Store.WorkflowRunsStore.GetWorkflowRuns()
@@ -30,6 +20,22 @@ func (app *Application) getWorkflows(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := app.jsonResponse(w, http.StatusOK, workflows); err != nil {
+		app.internalServerError(w, r, err)
+		return
+	}
+}
+
+func (app *Application) getJobs(w http.ResponseWriter, r *http.Request) {
+	workflowId := chi.URLParam(r, "workflowId")
+
+	jobs, err := app.Store.JobRunsStore.GetByWorkflowId(workflowId)
+
+	if err != nil {
+		app.internalServerError(w, r, err)
+		return
+	}
+
+	if err := app.jsonResponse(w, http.StatusOK, jobs); err != nil {
 		app.internalServerError(w, r, err)
 		return
 	}
@@ -77,7 +83,7 @@ func (app *Application) eventsHandler(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	subscriber := app.Cache.Subscribe(ctx, "workflow_run")
+	subscriber := app.Cache.Subscribe(ctx, "workflow_run", "job_run")
 
 	for {
 		select {
@@ -99,11 +105,11 @@ func (app *Application) eventsHandler(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		}
 	}
-
 }
 
 func (app *Application) updateWorkflowStatus(ctx context.Context, workflowId, status string) error {
-	if err := app.Cache.Publish(ctx, "workflow_run", nil).Err(); err != nil {
+	eventPayload := workflow.WorkflowRun{Id: workflowId, Status: status, Type: "workflow"}
+	if err := app.Cache.Publish(ctx, "workflow_run", eventPayload).Err(); err != nil {
 		return err
 	}
 	if err := app.Store.WorkflowRunsStore.UpdateStatus(workflowId, status); err != nil {
@@ -115,8 +121,9 @@ func (app *Application) updateWorkflowStatus(ctx context.Context, workflowId, st
 func (app *Application) updateWorkflowStatusWithDuration(ctx context.Context, workflowId, status string, start time.Time) error {
 	duration := time.Since(start)
 	secs := duration.Seconds()
+	eventPayload := workflow.WorkflowRun{Id: workflowId, Status: status, Type: "workflow"}
 
-	if err := app.Cache.Publish(ctx, "workflow_run", WorkflowRun{Id: workflowId, Status: status}).Err(); err != nil {
+	if err := app.Cache.Publish(ctx, "workflow_run", eventPayload).Err(); err != nil {
 		return err
 	}
 	if err := app.updateWorkflowStatus(ctx, workflowId, status); err != nil {

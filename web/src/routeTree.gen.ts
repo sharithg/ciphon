@@ -20,8 +20,8 @@ const SettingsLazyImport = createFileRoute('/settings')()
 const ProjectsLazyImport = createFileRoute('/projects')()
 const IndexLazyImport = createFileRoute('/')()
 const PipelinesIndexLazyImport = createFileRoute('/pipelines/')()
-const PipelinesPipelineIdLazyImport = createFileRoute(
-  '/pipelines/$pipelineId',
+const PipelinesWorkflowsWorkflowIdLazyImport = createFileRoute(
+  '/pipelines/workflows/$workflowId',
 )()
 
 // Create/Update Routes
@@ -48,12 +48,15 @@ const PipelinesIndexLazyRoute = PipelinesIndexLazyImport.update({
   import('./routes/pipelines/index.lazy').then((d) => d.Route),
 )
 
-const PipelinesPipelineIdLazyRoute = PipelinesPipelineIdLazyImport.update({
-  path: '/pipelines/$pipelineId',
-  getParentRoute: () => rootRoute,
-} as any).lazy(() =>
-  import('./routes/pipelines/$pipelineId.lazy').then((d) => d.Route),
-)
+const PipelinesWorkflowsWorkflowIdLazyRoute =
+  PipelinesWorkflowsWorkflowIdLazyImport.update({
+    path: '/pipelines/workflows/$workflowId',
+    getParentRoute: () => rootRoute,
+  } as any).lazy(() =>
+    import('./routes/pipelines/workflows/$workflowId.lazy').then(
+      (d) => d.Route,
+    ),
+  )
 
 // Populate the FileRoutesByPath interface
 
@@ -80,18 +83,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsLazyImport
       parentRoute: typeof rootRoute
     }
-    '/pipelines/$pipelineId': {
-      id: '/pipelines/$pipelineId'
-      path: '/pipelines/$pipelineId'
-      fullPath: '/pipelines/$pipelineId'
-      preLoaderRoute: typeof PipelinesPipelineIdLazyImport
-      parentRoute: typeof rootRoute
-    }
     '/pipelines/': {
       id: '/pipelines/'
       path: '/pipelines'
       fullPath: '/pipelines'
       preLoaderRoute: typeof PipelinesIndexLazyImport
+      parentRoute: typeof rootRoute
+    }
+    '/pipelines/workflows/$workflowId': {
+      id: '/pipelines/workflows/$workflowId'
+      path: '/pipelines/workflows/$workflowId'
+      fullPath: '/pipelines/workflows/$workflowId'
+      preLoaderRoute: typeof PipelinesWorkflowsWorkflowIdLazyImport
       parentRoute: typeof rootRoute
     }
   }
@@ -103,16 +106,16 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexLazyRoute
   '/projects': typeof ProjectsLazyRoute
   '/settings': typeof SettingsLazyRoute
-  '/pipelines/$pipelineId': typeof PipelinesPipelineIdLazyRoute
   '/pipelines': typeof PipelinesIndexLazyRoute
+  '/pipelines/workflows/$workflowId': typeof PipelinesWorkflowsWorkflowIdLazyRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexLazyRoute
   '/projects': typeof ProjectsLazyRoute
   '/settings': typeof SettingsLazyRoute
-  '/pipelines/$pipelineId': typeof PipelinesPipelineIdLazyRoute
   '/pipelines': typeof PipelinesIndexLazyRoute
+  '/pipelines/workflows/$workflowId': typeof PipelinesWorkflowsWorkflowIdLazyRoute
 }
 
 export interface FileRoutesById {
@@ -120,8 +123,8 @@ export interface FileRoutesById {
   '/': typeof IndexLazyRoute
   '/projects': typeof ProjectsLazyRoute
   '/settings': typeof SettingsLazyRoute
-  '/pipelines/$pipelineId': typeof PipelinesPipelineIdLazyRoute
   '/pipelines/': typeof PipelinesIndexLazyRoute
+  '/pipelines/workflows/$workflowId': typeof PipelinesWorkflowsWorkflowIdLazyRoute
 }
 
 export interface FileRouteTypes {
@@ -130,17 +133,22 @@ export interface FileRouteTypes {
     | '/'
     | '/projects'
     | '/settings'
-    | '/pipelines/$pipelineId'
     | '/pipelines'
+    | '/pipelines/workflows/$workflowId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/projects' | '/settings' | '/pipelines/$pipelineId' | '/pipelines'
+  to:
+    | '/'
+    | '/projects'
+    | '/settings'
+    | '/pipelines'
+    | '/pipelines/workflows/$workflowId'
   id:
     | '__root__'
     | '/'
     | '/projects'
     | '/settings'
-    | '/pipelines/$pipelineId'
     | '/pipelines/'
+    | '/pipelines/workflows/$workflowId'
   fileRoutesById: FileRoutesById
 }
 
@@ -148,16 +156,16 @@ export interface RootRouteChildren {
   IndexLazyRoute: typeof IndexLazyRoute
   ProjectsLazyRoute: typeof ProjectsLazyRoute
   SettingsLazyRoute: typeof SettingsLazyRoute
-  PipelinesPipelineIdLazyRoute: typeof PipelinesPipelineIdLazyRoute
   PipelinesIndexLazyRoute: typeof PipelinesIndexLazyRoute
+  PipelinesWorkflowsWorkflowIdLazyRoute: typeof PipelinesWorkflowsWorkflowIdLazyRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexLazyRoute: IndexLazyRoute,
   ProjectsLazyRoute: ProjectsLazyRoute,
   SettingsLazyRoute: SettingsLazyRoute,
-  PipelinesPipelineIdLazyRoute: PipelinesPipelineIdLazyRoute,
   PipelinesIndexLazyRoute: PipelinesIndexLazyRoute,
+  PipelinesWorkflowsWorkflowIdLazyRoute: PipelinesWorkflowsWorkflowIdLazyRoute,
 }
 
 export const routeTree = rootRoute
@@ -175,8 +183,8 @@ export const routeTree = rootRoute
         "/",
         "/projects",
         "/settings",
-        "/pipelines/$pipelineId",
-        "/pipelines/"
+        "/pipelines/",
+        "/pipelines/workflows/$workflowId"
       ]
     },
     "/": {
@@ -188,11 +196,11 @@ export const routeTree = rootRoute
     "/settings": {
       "filePath": "settings.lazy.tsx"
     },
-    "/pipelines/$pipelineId": {
-      "filePath": "pipelines/$pipelineId.lazy.tsx"
-    },
     "/pipelines/": {
       "filePath": "pipelines/index.lazy.tsx"
+    },
+    "/pipelines/workflows/$workflowId": {
+      "filePath": "pipelines/workflows/$workflowId.lazy.tsx"
     }
   }
 }

@@ -2,7 +2,9 @@ package workflow
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strings"
 
@@ -18,71 +20,151 @@ type WorkflowManager struct {
 	cache          *redis.Client
 }
 
+type WorkflowRun struct {
+	Id     string `json:"id"`
+	Status string `json:"status"`
+	Type   string `json:"type"`
+}
+
+func (w WorkflowRun) MarshalBinary() ([]byte, error) {
+	return json.Marshal(w)
+}
+
 func New(s *storage.Storage, c string, r *redis.Client) *WorkflowManager {
 	return &WorkflowManager{store: s, githubClientId: c, cache: r}
 }
 
 func (wm *WorkflowManager) TriggerWorkflow(ctx context.Context, workflowId string) error {
-
-	workflows, err := wm.store.WorkflowRunsStore.GetById(workflowId)
+	workflows, err := wm.getWorkflowsByID(workflowId)
 	if err != nil {
 		return err
 	}
 
-	if len(workflows) == 0 {
-		return err
-	}
+	jobMap := wm.partitionWorkflowsByJob(workflows)
 
 	nodes, err := wm.store.Nodes.All()
 	if err != nil {
 		return err
 	}
 
-	node := nodes[0]
-	sshConn, err := remote.New(node.Host, node.User, []byte(node.PemFile), true)
+	client, err := wm.initializeSSH(nodes[0])
 	if err != nil {
 		return err
+	}
+
+	for jobId, steps := range jobMap {
+		fmt.Printf("Processing job: %s\n", jobId)
+
+		if err := wm.updateJobStatus(ctx, jobId, "running"); err != nil {
+			slog.Error("error updating workflow status: %w", "err", err)
+		}
+
+		if err := wm.executeJob(client, steps, nodes[0]); err != nil {
+			if err := wm.updateJobStatus(ctx, jobId, "failed"); err != nil {
+				slog.Error("error updating workflow status: %w", "err", err)
+			}
+			return err
+		}
+		if err := wm.updateJobStatus(ctx, jobId, "success"); err != nil {
+			slog.Error("error updating workflow status: %w", "err", err)
+		}
+	}
+
+	return nil
+}
+
+func (wm *WorkflowManager) updateJobStatus(ctx context.Context, jobId, status string) error {
+	eventPayload := WorkflowRun{Id: jobId, Status: status, Type: "job"}
+	if err := wm.cache.Publish(ctx, "job_run", eventPayload).Err(); err != nil {
+		return err
+	}
+	if err := wm.store.JobRunsStore.UpdateStatus(jobId, status); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (wm *WorkflowManager) getWorkflowsByID(workflowId string) ([]storage.WorkflowRunSteps, error) {
+	workflows, err := wm.store.WorkflowRunsStore.GetById(workflowId)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(workflows) == 0 {
+		return nil, fmt.Errorf("no workflows found for workflow ID: %s", workflowId)
+	}
+
+	return workflows, nil
+}
+
+func (wm *WorkflowManager) partitionWorkflowsByJob(workflows []storage.WorkflowRunSteps) map[string][]storage.WorkflowRunSteps {
+	jobMap := make(map[string][]storage.WorkflowRunSteps)
+	for _, workflow := range workflows {
+		jobMap[workflow.JobID] = append(jobMap[workflow.JobID], workflow)
+	}
+	return jobMap
+}
+
+func (wm *WorkflowManager) initializeSSH(node storage.Node) (*ssh.Client, error) {
+	sshConn, err := remote.New(node.Host, node.User, []byte(node.PemFile), true)
+	if err != nil {
+		return nil, err
 	}
 
 	client, err := sshConn.Dial()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	gitUrl := workflows[0].Url
-	repoName := workflows[0].RepoName
-	ref := workflows[0].Branch
+	return client, nil
+}
+
+func (wm *WorkflowManager) executeJob(client *ssh.Client, steps []storage.WorkflowRunSteps, node storage.Node) error {
+	// Shared data for the job
+	gitUrl := steps[0].Url
+	repoName := steps[0].RepoName
+	ref := steps[0].Branch
 
 	defer func() {
 		go wm.stopDockerImage(client, repoName)
 	}()
 
-	for _, workflow := range workflows {
-		switch stepType := workflow.Type; stepType {
-		case "checkout":
-			if err := wm.pullDockerImage(client, workflow.Docker); err != nil {
-				return err
-			}
+	for _, step := range steps {
+		if err := wm.executeStep(client, step, gitUrl, repoName, ref, node); err != nil {
+			return err
+		}
+	}
 
-			if err := wm.runBackgroundDockerImage(client, workflow.Docker, repoName); err != nil {
-				return err
-			}
+	return nil
+}
 
-			if err := wm.checkout(client, node.PemFile, gitUrl, repoName, ref); err != nil {
-				return err
-			}
+func (wm *WorkflowManager) executeStep(client *ssh.Client, step storage.WorkflowRunSteps, gitUrl, repoName, ref string, node storage.Node) error {
+	switch step.Type {
+	case "checkout":
+		if err := wm.pullDockerImage(client, step.Docker); err != nil {
+			return err
+		}
 
-		case "restore_cache":
-			fmt.Printf("step %s not implemented\n", stepType)
-		case "save_cache":
-			fmt.Printf("step %s not implemented\n", stepType)
-		default:
-			cmd := fmt.Sprintf(`
-				docker exec -w /%s %s sh -c "%s"
-			`, repoName, repoName, workflow.Command)
-			if err := wm.runStepCommand(client, cmd); err != nil {
-				return err
-			}
+		if err := wm.runBackgroundDockerImage(client, step.Docker, repoName); err != nil {
+			return err
+		}
+
+		if err := wm.checkout(client, node.PemFile, gitUrl, repoName, ref); err != nil {
+			return err
+		}
+
+	case "restore_cache":
+		fmt.Printf("step %s (restore_cache) not implemented\n", step.StepID)
+
+	case "save_cache":
+		fmt.Printf("step %s (save_cache) not implemented\n", step.StepID)
+
+	default:
+		cmd := fmt.Sprintf(`
+			docker exec -w /%s %s sh -c "%s"
+		`, repoName, repoName, step.Command)
+		if err := wm.runStepCommand(client, cmd); err != nil {
+			return err
 		}
 	}
 

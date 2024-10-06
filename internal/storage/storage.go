@@ -25,6 +25,8 @@ type Storage struct {
 	}
 	JobRunsStore interface {
 		Create(jobRun JobRun) (string, error)
+		GetByWorkflowId(workflowId string) ([]Jobs, error)
+		UpdateStatus(id string, status string) error
 	}
 	StepRunsStore interface {
 		Create(stepRun StepRun) (string, error)
