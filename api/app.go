@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/go-redis/redis/v8"
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/sharithg/siphon/internal/env"
 	"github.com/sharithg/siphon/internal/repo"
@@ -23,6 +24,7 @@ import (
 type Config struct {
 	Github repo.GithubConfig
 	Db     DbConfig
+	Cache  CacheConfig
 	Addr   string
 	Env    string
 }
@@ -39,12 +41,17 @@ type DbConfig struct {
 	MaxIdleTime  string
 }
 
+type CacheConfig struct {
+	Addr string
+}
+
 type Application struct {
 	Config       Config
 	Store        *storage.Storage
 	MinioStorage *minio.Storage
 	Github       *repo.Github
 	Wh           *GhWebhookHandler
+	Cache        *redis.Client
 }
 
 func (app *Application) Mount() http.Handler {
@@ -103,6 +110,7 @@ func (app *Application) Mount() http.Handler {
 		r.Route("/workflows", func(r chi.Router) {
 			r.Get("/", app.getWorkflows)
 			r.Post("/trigger/{workflowId}", app.triggerWorkflow)
+			r.HandleFunc("/run-events", app.eventsHandler)
 		})
 	})
 

@@ -1,11 +1,11 @@
 package remote
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"log"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -21,6 +21,8 @@ type SshConn struct {
 	Key  []byte
 	conf *ssh.ClientConfig
 }
+
+type streamFunc func(streamType string, buf []byte)
 
 func New(host string, user string, pemKeyContent []byte, ignoreHostKey bool) (*SshConn, error) {
 	signer, err := ssh.ParsePrivateKey(pemKeyContent)
@@ -100,12 +102,14 @@ func knownHostsPath() (string, error) {
 	return homeDir + "/.ssh/known_hosts", nil
 }
 
-func streamOutput(name string, pipe io.Reader) {
+func streamOutput(name string, pipe io.Reader, fn streamFunc) {
 	buf := make([]byte, 1024)
 	for {
 		n, err := pipe.Read(buf)
 		if n > 0 {
-			fmt.Printf("[%s] %s", name, buf[:n])
+			if fn != nil {
+				fn(name, buf[:n])
+			}
 		}
 		if err != nil {
 			if err == io.EOF {
@@ -117,7 +121,7 @@ func streamOutput(name string, pipe io.Reader) {
 	}
 }
 
-func RunCommand(session *ssh.Session, command string) error {
+func RunCommand(session *ssh.Session, command string, fn streamFunc) error {
 
 	fmt.Println(Green + command + Reset)
 
@@ -131,29 +135,76 @@ func RunCommand(session *ssh.Session, command string) error {
 		return fmt.Errorf("failed to set up stderr for command: %w", err)
 	}
 
-	var wg sync.WaitGroup
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		streamOutput("stdout", stdout)
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		streamOutput("stderr", stderr)
-	}()
+	stdoutReader := bufio.NewReader(stdout)
+	stderrReader := bufio.NewReader(stderr)
 
 	if err := session.Start(command); err != nil {
 		return fmt.Errorf("failed to start command: %w", err)
 	}
 
+	// Create channels to read from stdout and stderr
+	stdoutChan := make(chan string)
+	stderrChan := make(chan string)
+	doneChan := make(chan struct{})
+
+	go func() {
+		for {
+			line, err := stdoutReader.ReadString('\n')
+			if err != nil {
+				if err != io.EOF {
+					log.Printf("Error reading from stdout: %v", err)
+				}
+				close(stdoutChan)
+				return
+			}
+			stdoutChan <- line
+		}
+	}()
+
+	go func() {
+		for {
+			line, err := stderrReader.ReadString('\n')
+			if err != nil {
+				if err != io.EOF {
+					log.Printf("Error reading from stderr: %v", err)
+				}
+				close(stderrChan)
+				return
+			}
+			stderrChan <- line
+		}
+	}()
+
+	// Read from stdout and stderr channels in order
+	go func() {
+		for stdoutChan != nil || stderrChan != nil {
+			select {
+			case line, ok := <-stdoutChan:
+				if !ok {
+					stdoutChan = nil
+					continue
+				}
+				if fn != nil {
+					fn("stdout", []byte(line))
+				}
+			case line, ok := <-stderrChan:
+				if !ok {
+					stderrChan = nil
+					continue
+				}
+				if fn != nil {
+					fn("stderr", []byte(line))
+				}
+			}
+		}
+		close(doneChan)
+	}()
+
 	if err := session.Wait(); err != nil {
 		return fmt.Errorf("failed to execute command: %w", err)
 	}
 
-	wg.Wait()
+	<-doneChan
 
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"log"
 	"log/slog"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/sharithg/siphon/api"
@@ -36,6 +37,9 @@ func main() {
 		},
 		Github: *ghCfg,
 		Env:    env.GetString("GOENV", false, "local"),
+		Cache: api.CacheConfig{
+			Addr: env.GetString("CACHE_URL", false, "localhost:6379"),
+		},
 	}
 
 	dbClient, err := db.New(
@@ -44,6 +48,9 @@ func main() {
 		cfg.Db.MaxIdleConns,
 		cfg.Db.MaxIdleTime,
 	)
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+	})
 
 	if err != nil {
 		log.Fatal("error configuring db", err)
@@ -79,6 +86,7 @@ func main() {
 		Store:        store,
 		MinioStorage: minioStorage,
 		Github:       ghClient,
+		Cache:        redisClient,
 	}
 
 	mux := app.Mount()

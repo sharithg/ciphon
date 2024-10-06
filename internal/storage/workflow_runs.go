@@ -27,7 +27,7 @@ type WorkflowRunInfo struct {
 	Status       *string   `db:"status" json:"status,omitempty"`
 	Branch       string    `db:"branch" json:"branch"`
 	CreatedAt    time.Time `db:"created_at" json:"createdAt"`
-	Duration     *int      `db:"duration" json:"duration,omitempty"`
+	Duration     *float64  `db:"duration" json:"duration,omitempty"`
 }
 
 type WorkflowRunSteps struct {
@@ -158,4 +158,30 @@ func (s *WorkflowRunStore) GetById(id string) ([]WorkflowRunSteps, error) {
 	}
 
 	return stepRuns, nil
+}
+
+func (s *WorkflowRunStore) UpdateStatus(id, status string) error {
+	query := `
+		update workflow_runs
+		set status = $1
+		where id = $2
+	`
+	err := s.db.QueryRow(query, status, id).Err()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *WorkflowRunStore) UpdateDuration(id string, duration float64) error {
+	query := `
+		update workflow_runs
+		set duration = $1
+		where id = $2
+	`
+	err := s.db.QueryRow(query, duration, id).Err()
+	if err != nil {
+		return err
+	}
+	return nil
 }

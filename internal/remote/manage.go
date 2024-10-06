@@ -38,7 +38,7 @@ func (s *SshConn) InstallTools() error {
 	`
 	fmt.Printf("dial took %v\n", time.Since(start))
 
-	if err := RunCommand(session, command); err != nil {
+	if err := RunCommand(session, command, nil); err != nil {
 		return err
 	}
 

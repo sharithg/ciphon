@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/sharithg/siphon/internal/remote"
 	"github.com/sharithg/siphon/internal/storage"
 	"golang.org/x/crypto/ssh"
@@ -13,11 +14,12 @@ import (
 
 type WorkflowManager struct {
 	store          *storage.Storage
-	GithubClientId string
+	githubClientId string
+	cache          *redis.Client
 }
 
-func New(s *storage.Storage, c string) *WorkflowManager {
-	return &WorkflowManager{store: s, GithubClientId: c}
+func New(s *storage.Storage, c string, r *redis.Client) *WorkflowManager {
+	return &WorkflowManager{store: s, githubClientId: c, cache: r}
 }
 
 func (wm *WorkflowManager) TriggerWorkflow(ctx context.Context, workflowId string) error {
@@ -87,6 +89,10 @@ func (wm *WorkflowManager) TriggerWorkflow(ctx context.Context, workflowId strin
 	return nil
 }
 
+func (wm *WorkflowManager) saveCommandOutput(streamType string, output []byte) {
+	fmt.Printf("[%s] %s", streamType, output)
+}
+
 func (wm *WorkflowManager) runStepCommand(client *ssh.Client, command string) error {
 	session, err := client.NewSession()
 	if err != nil {
@@ -94,7 +100,7 @@ func (wm *WorkflowManager) runStepCommand(client *ssh.Client, command string) er
 	}
 	defer session.Close()
 
-	if err := remote.RunCommand(session, command); err != nil {
+	if err := remote.RunCommand(session, command, wm.saveCommandOutput); err != nil {
 		return err
 	}
 
@@ -108,7 +114,7 @@ func (wm *WorkflowManager) checkout(client *ssh.Client, pemContent, gitUrl, name
 	}
 	defer session.Close()
 
-	token, err := remote.GenerateJWTToken([]byte(pemContent), wm.GithubClientId)
+	token, err := remote.GenerateJWTToken([]byte(pemContent), wm.githubClientId)
 	if err != nil {
 		return err
 	}
@@ -127,7 +133,7 @@ func (wm *WorkflowManager) checkout(client *ssh.Client, pemContent, gitUrl, name
     "
 	`, name, cloneUrl, name, ref)
 
-	if err := remote.RunCommand(session, command); err != nil {
+	if err := remote.RunCommand(session, command, wm.saveCommandOutput); err != nil {
 		return err
 	}
 
@@ -145,7 +151,7 @@ func (wm *WorkflowManager) pullDockerImage(client *ssh.Client, docker string) er
         docker pull %s
     `, docker)
 
-	if err := remote.RunCommand(session, command); err != nil {
+	if err := remote.RunCommand(session, command, wm.saveCommandOutput); err != nil {
 		return err
 	}
 
@@ -163,7 +169,7 @@ func (wm *WorkflowManager) runBackgroundDockerImage(client *ssh.Client, imageNam
         docker run -d -v /home/ubuntu/%s:/app/%s --name %s %s tail -f /dev/null
     `, repoName, repoName, repoName, imageName)
 
-	if err := remote.RunCommand(session, command); err != nil {
+	if err := remote.RunCommand(session, command, wm.saveCommandOutput); err != nil {
 		return err
 	}
 
@@ -186,7 +192,7 @@ func (wm *WorkflowManager) stopDockerImage(client *ssh.Client, repoName string) 
 		fi
     `, repoName, repoName, repoName, repoName)
 
-	if err := remote.RunCommand(session, command); err != nil {
+	if err := remote.RunCommand(session, command, wm.saveCommandOutput); err != nil {
 		return err
 	}
 
