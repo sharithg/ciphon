@@ -185,3 +185,37 @@ func (s *WorkflowRunStore) UpdateDuration(id string, duration float64) error {
 	}
 	return nil
 }
+
+func (s *WorkflowRunStore) UpdateAllStatuses(workflowID string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	_, err = tx.Exec("UPDATE workflow_runs SET status = NULL WHERE id = $1", workflowID)
+	if err != nil {
+		return fmt.Errorf("failed to update workflow_runs status: %w", err)
+	}
+
+	_, err = tx.Exec("UPDATE job_runs SET status = NULL WHERE workflow_id = $1", workflowID)
+	if err != nil {
+		return fmt.Errorf("failed to update jobs status: %w", err)
+	}
+
+	_, err = tx.Exec("UPDATE step_runs SET status = NULL WHERE job_id IN (SELECT id FROM job_runs WHERE workflow_id = $1)", workflowID)
+	if err != nil {
+		return fmt.Errorf("failed to update steps status: %w", err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}

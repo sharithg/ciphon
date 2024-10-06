@@ -22,6 +22,7 @@ type Storage struct {
 		GetById(id string) ([]WorkflowRunSteps, error)
 		UpdateStatus(id string, status string) error
 		UpdateDuration(id string, duration float64) error
+		UpdateAllStatuses(workflowID string) error
 	}
 	JobRunsStore interface {
 		Create(jobRun JobRun) (string, error)
@@ -30,6 +31,8 @@ type Storage struct {
 	}
 	StepRunsStore interface {
 		Create(stepRun StepRun) (string, error)
+		GetByJobId(jobId string) ([]Steps, error)
+		UpdateStatus(id string, status string) error
 	}
 }
 

@@ -13,6 +13,7 @@ import { createFileRoute } from '@tanstack/react-router'
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
+import { Route as PipelinesWorkflowsWorkflowIdIndexImport } from './routes/pipelines/workflows/$workflowId/index'
 
 // Create Virtual Routes
 
@@ -20,8 +21,8 @@ const SettingsLazyImport = createFileRoute('/settings')()
 const ProjectsLazyImport = createFileRoute('/projects')()
 const IndexLazyImport = createFileRoute('/')()
 const PipelinesIndexLazyImport = createFileRoute('/pipelines/')()
-const PipelinesWorkflowsWorkflowIdLazyImport = createFileRoute(
-  '/pipelines/workflows/$workflowId',
+const PipelinesWorkflowsWorkflowIdJobsJobIdLazyImport = createFileRoute(
+  '/pipelines/workflows/$workflowId/jobs/$jobId',
 )()
 
 // Create/Update Routes
@@ -48,12 +49,18 @@ const PipelinesIndexLazyRoute = PipelinesIndexLazyImport.update({
   import('./routes/pipelines/index.lazy').then((d) => d.Route),
 )
 
-const PipelinesWorkflowsWorkflowIdLazyRoute =
-  PipelinesWorkflowsWorkflowIdLazyImport.update({
-    path: '/pipelines/workflows/$workflowId',
+const PipelinesWorkflowsWorkflowIdIndexRoute =
+  PipelinesWorkflowsWorkflowIdIndexImport.update({
+    path: '/pipelines/workflows/$workflowId/',
+    getParentRoute: () => rootRoute,
+  } as any)
+
+const PipelinesWorkflowsWorkflowIdJobsJobIdLazyRoute =
+  PipelinesWorkflowsWorkflowIdJobsJobIdLazyImport.update({
+    path: '/pipelines/workflows/$workflowId/jobs/$jobId',
     getParentRoute: () => rootRoute,
   } as any).lazy(() =>
-    import('./routes/pipelines/workflows/$workflowId.lazy').then(
+    import('./routes/pipelines/workflows/$workflowId/jobs/$jobId.lazy').then(
       (d) => d.Route,
     ),
   )
@@ -90,11 +97,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PipelinesIndexLazyImport
       parentRoute: typeof rootRoute
     }
-    '/pipelines/workflows/$workflowId': {
-      id: '/pipelines/workflows/$workflowId'
+    '/pipelines/workflows/$workflowId/': {
+      id: '/pipelines/workflows/$workflowId/'
       path: '/pipelines/workflows/$workflowId'
       fullPath: '/pipelines/workflows/$workflowId'
-      preLoaderRoute: typeof PipelinesWorkflowsWorkflowIdLazyImport
+      preLoaderRoute: typeof PipelinesWorkflowsWorkflowIdIndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/pipelines/workflows/$workflowId/jobs/$jobId': {
+      id: '/pipelines/workflows/$workflowId/jobs/$jobId'
+      path: '/pipelines/workflows/$workflowId/jobs/$jobId'
+      fullPath: '/pipelines/workflows/$workflowId/jobs/$jobId'
+      preLoaderRoute: typeof PipelinesWorkflowsWorkflowIdJobsJobIdLazyImport
       parentRoute: typeof rootRoute
     }
   }
@@ -107,7 +121,8 @@ export interface FileRoutesByFullPath {
   '/projects': typeof ProjectsLazyRoute
   '/settings': typeof SettingsLazyRoute
   '/pipelines': typeof PipelinesIndexLazyRoute
-  '/pipelines/workflows/$workflowId': typeof PipelinesWorkflowsWorkflowIdLazyRoute
+  '/pipelines/workflows/$workflowId': typeof PipelinesWorkflowsWorkflowIdIndexRoute
+  '/pipelines/workflows/$workflowId/jobs/$jobId': typeof PipelinesWorkflowsWorkflowIdJobsJobIdLazyRoute
 }
 
 export interface FileRoutesByTo {
@@ -115,7 +130,8 @@ export interface FileRoutesByTo {
   '/projects': typeof ProjectsLazyRoute
   '/settings': typeof SettingsLazyRoute
   '/pipelines': typeof PipelinesIndexLazyRoute
-  '/pipelines/workflows/$workflowId': typeof PipelinesWorkflowsWorkflowIdLazyRoute
+  '/pipelines/workflows/$workflowId': typeof PipelinesWorkflowsWorkflowIdIndexRoute
+  '/pipelines/workflows/$workflowId/jobs/$jobId': typeof PipelinesWorkflowsWorkflowIdJobsJobIdLazyRoute
 }
 
 export interface FileRoutesById {
@@ -124,7 +140,8 @@ export interface FileRoutesById {
   '/projects': typeof ProjectsLazyRoute
   '/settings': typeof SettingsLazyRoute
   '/pipelines/': typeof PipelinesIndexLazyRoute
-  '/pipelines/workflows/$workflowId': typeof PipelinesWorkflowsWorkflowIdLazyRoute
+  '/pipelines/workflows/$workflowId/': typeof PipelinesWorkflowsWorkflowIdIndexRoute
+  '/pipelines/workflows/$workflowId/jobs/$jobId': typeof PipelinesWorkflowsWorkflowIdJobsJobIdLazyRoute
 }
 
 export interface FileRouteTypes {
@@ -135,6 +152,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/pipelines'
     | '/pipelines/workflows/$workflowId'
+    | '/pipelines/workflows/$workflowId/jobs/$jobId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -142,13 +160,15 @@ export interface FileRouteTypes {
     | '/settings'
     | '/pipelines'
     | '/pipelines/workflows/$workflowId'
+    | '/pipelines/workflows/$workflowId/jobs/$jobId'
   id:
     | '__root__'
     | '/'
     | '/projects'
     | '/settings'
     | '/pipelines/'
-    | '/pipelines/workflows/$workflowId'
+    | '/pipelines/workflows/$workflowId/'
+    | '/pipelines/workflows/$workflowId/jobs/$jobId'
   fileRoutesById: FileRoutesById
 }
 
@@ -157,7 +177,8 @@ export interface RootRouteChildren {
   ProjectsLazyRoute: typeof ProjectsLazyRoute
   SettingsLazyRoute: typeof SettingsLazyRoute
   PipelinesIndexLazyRoute: typeof PipelinesIndexLazyRoute
-  PipelinesWorkflowsWorkflowIdLazyRoute: typeof PipelinesWorkflowsWorkflowIdLazyRoute
+  PipelinesWorkflowsWorkflowIdIndexRoute: typeof PipelinesWorkflowsWorkflowIdIndexRoute
+  PipelinesWorkflowsWorkflowIdJobsJobIdLazyRoute: typeof PipelinesWorkflowsWorkflowIdJobsJobIdLazyRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
@@ -165,7 +186,10 @@ const rootRouteChildren: RootRouteChildren = {
   ProjectsLazyRoute: ProjectsLazyRoute,
   SettingsLazyRoute: SettingsLazyRoute,
   PipelinesIndexLazyRoute: PipelinesIndexLazyRoute,
-  PipelinesWorkflowsWorkflowIdLazyRoute: PipelinesWorkflowsWorkflowIdLazyRoute,
+  PipelinesWorkflowsWorkflowIdIndexRoute:
+    PipelinesWorkflowsWorkflowIdIndexRoute,
+  PipelinesWorkflowsWorkflowIdJobsJobIdLazyRoute:
+    PipelinesWorkflowsWorkflowIdJobsJobIdLazyRoute,
 }
 
 export const routeTree = rootRoute
@@ -184,7 +208,8 @@ export const routeTree = rootRoute
         "/projects",
         "/settings",
         "/pipelines/",
-        "/pipelines/workflows/$workflowId"
+        "/pipelines/workflows/$workflowId/",
+        "/pipelines/workflows/$workflowId/jobs/$jobId"
       ]
     },
     "/": {
@@ -199,8 +224,11 @@ export const routeTree = rootRoute
     "/pipelines/": {
       "filePath": "pipelines/index.lazy.tsx"
     },
-    "/pipelines/workflows/$workflowId": {
-      "filePath": "pipelines/workflows/$workflowId.lazy.tsx"
+    "/pipelines/workflows/$workflowId/": {
+      "filePath": "pipelines/workflows/$workflowId/index.tsx"
+    },
+    "/pipelines/workflows/$workflowId/jobs/$jobId": {
+      "filePath": "pipelines/workflows/$workflowId/jobs/$jobId.lazy.tsx"
     }
   }
 }

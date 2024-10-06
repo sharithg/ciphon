@@ -1,12 +1,4 @@
-import { createLazyFileRoute, Link } from "@tanstack/react-router";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   ReactFlow,
   Controls,
@@ -18,12 +10,18 @@ import {
 
 import "@xyflow/react/dist/base.css";
 import CustomNode from "@/components/custom-node";
-import { useGetJobs } from "../../../hooks/react-query/use-workflows";
+import { useGetJobs } from "@/hooks/react-query/use-workflows";
 import { useEffect, useState } from "react";
-import useWorkflowEvents from "../../../hooks/react-query/use-sse";
+import useWorkflowEvents from "@/hooks/react-query/use-sse";
+import { selectedJobAtom } from "../../../../components/atoms/workflows";
+import { useAtom } from "jotai";
 
-export const Route = createLazyFileRoute("/pipelines/workflows/$workflowId")({
-  component: Pipeline,
+export const Route = createFileRoute("/pipelines/workflows/$workflowId/")({
+  component: () => (
+    <>
+      <Pipeline />
+    </>
+  ),
 });
 
 const nodeTypes = {
@@ -37,6 +35,9 @@ function Pipeline() {
   const { data, refetch } = useGetJobs(params.workflowId);
 
   const [nodes, setNodes] = useState<Node[]>([]);
+  const [, setSelectedJob] = useAtom(selectedJobAtom);
+
+  const nav = useNavigate();
 
   useWorkflowEvents((event) => {
     if (event.type === "job") {
@@ -58,29 +59,8 @@ function Pipeline() {
     }
   }, [data]);
 
-  console.log({ data: data });
-
   return (
     <>
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href="/">Pipelines</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href="/">Home</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>Breadcrumb</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
       <div style={{ height: 500, width: "100%" }}>
         <ReactFlow
           nodes={nodes}
@@ -100,7 +80,13 @@ function Pipeline() {
           // Optional if you also want to lock zooming
           zoomOnDoubleClick={false}
           onNodeClick={(_, node) => {
-            console.log(node.id);
+            setSelectedJob({
+              id: node.id,
+              name: node.data.label as string,
+            });
+            nav({
+              to: `/pipelines/workflows/${params.workflowId}/jobs/${node.id}`,
+            });
           }}
         >
           <Controls />

@@ -113,6 +113,9 @@ func (app *Application) Mount() http.Handler {
 			r.HandleFunc("/run-events", app.eventsHandler)
 			r.Route("/{workflowId}", func(r chi.Router) {
 				r.Get("/jobs", app.getJobs)
+				r.Route("/jobs/{jobId}", func(r chi.Router) {
+					r.Get("/steps", app.getSteps)
+				})
 			})
 		})
 	})

@@ -20,6 +20,15 @@ type Job = {
   name: string;
   status: string;
 };
+
+type Step = {
+  type: string;
+  id: string;
+  name: string;
+  command: string;
+  status: string | null;
+};
+
 export const useGetWorkflows = () => {
   return useQuery({
     queryKey: ["workflows"],
@@ -41,5 +50,15 @@ export const useGetJobs = (workflowId: string) => {
     queryKey: [`workflows/${workflowId}/jobs`],
     queryFn: () =>
       fetchData<WithData<Job[]>>(`${API_URL}/workflows/${workflowId}/jobs`),
+  });
+};
+
+export const useGetSteps = (workflowId: string, jobId: string) => {
+  return useQuery({
+    queryKey: [`workflows/${workflowId}/jobs`],
+    queryFn: () =>
+      fetchData<WithData<Step[]>>(
+        `${API_URL}/workflows/${workflowId}/jobs/${jobId}/steps`
+      ),
   });
 };

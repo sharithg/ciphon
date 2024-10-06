@@ -59,7 +59,7 @@ func (wm *WorkflowManager) TriggerWorkflow(ctx context.Context, workflowId strin
 			slog.Error("error updating workflow status: %w", "err", err)
 		}
 
-		if err := wm.executeJob(client, steps, nodes[0]); err != nil {
+		if err := wm.executeJob(ctx, client, steps, nodes[0]); err != nil {
 			if err := wm.updateJobStatus(ctx, jobId, "failed"); err != nil {
 				slog.Error("error updating workflow status: %w", "err", err)
 			}
@@ -79,6 +79,17 @@ func (wm *WorkflowManager) updateJobStatus(ctx context.Context, jobId, status st
 		return err
 	}
 	if err := wm.store.JobRunsStore.UpdateStatus(jobId, status); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (wm *WorkflowManager) updateStepStatus(ctx context.Context, stepId, status string) error {
+	eventPayload := WorkflowRun{Id: stepId, Status: status, Type: "step"}
+	if err := wm.cache.Publish(ctx, "step_run", eventPayload).Err(); err != nil {
+		return err
+	}
+	if err := wm.store.StepRunsStore.UpdateStatus(stepId, status); err != nil {
 		return err
 	}
 	return nil
@@ -119,7 +130,7 @@ func (wm *WorkflowManager) initializeSSH(node storage.Node) (*ssh.Client, error)
 	return client, nil
 }
 
-func (wm *WorkflowManager) executeJob(client *ssh.Client, steps []storage.WorkflowRunSteps, node storage.Node) error {
+func (wm *WorkflowManager) executeJob(ctx context.Context, client *ssh.Client, steps []storage.WorkflowRunSteps, node storage.Node) error {
 	// Shared data for the job
 	gitUrl := steps[0].Url
 	repoName := steps[0].RepoName
@@ -130,8 +141,17 @@ func (wm *WorkflowManager) executeJob(client *ssh.Client, steps []storage.Workfl
 	}()
 
 	for _, step := range steps {
+		if err := wm.updateStepStatus(ctx, step.StepID, "running"); err != nil {
+			slog.Error("error updating step status: %w", "err", err)
+		}
 		if err := wm.executeStep(client, step, gitUrl, repoName, ref, node); err != nil {
+			if err := wm.updateStepStatus(ctx, step.StepID, "failed"); err != nil {
+				slog.Error("error updating step status: %w", "err", err)
+			}
 			return err
+		}
+		if err := wm.updateStepStatus(ctx, step.StepID, "success"); err != nil {
+			slog.Error("error updating step status: %w", "err", err)
 		}
 	}
 

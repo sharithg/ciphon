@@ -41,10 +41,31 @@ func (app *Application) getJobs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (app *Application) getSteps(w http.ResponseWriter, r *http.Request) {
+	jobId := chi.URLParam(r, "jobId")
+
+	jobs, err := app.Store.StepRunsStore.GetByJobId(jobId)
+
+	if err != nil {
+		app.internalServerError(w, r, err)
+		return
+	}
+
+	if err := app.jsonResponse(w, http.StatusOK, jobs); err != nil {
+		app.internalServerError(w, r, err)
+		return
+	}
+}
+
 func (app *Application) triggerWorkflow(w http.ResponseWriter, r *http.Request) {
 	workflowId := chi.URLParam(r, "workflowId")
 
 	wm := workflow.New(app.Store, app.Config.Github.AppConfig.OAuth.ClientID, app.Cache)
+
+	if err := app.Store.WorkflowRunsStore.UpdateAllStatuses(workflowId); err != nil {
+		app.internalServerError(w, r, err)
+		return
+	}
 
 	if err := app.updateWorkflowStatus(r.Context(), workflowId, "running"); err != nil {
 		slog.Error("error updating workflow status: %w", "err", err)
@@ -83,7 +104,7 @@ func (app *Application) eventsHandler(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	subscriber := app.Cache.Subscribe(ctx, "workflow_run", "job_run")
+	subscriber := app.Cache.Subscribe(ctx, "workflow_run", "job_run", "step_run")
 
 	for {
 		select {

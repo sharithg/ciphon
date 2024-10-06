@@ -5,5 +5,9 @@ export const Route = createLazyFileRoute("/pipelines/")({
 });
 
 function PipelinesProvider() {
-  return <Pipelines />;
+  return (
+    <>
+      <Pipelines />
+    </>
+  );
 }

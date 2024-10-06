@@ -39,6 +39,8 @@ import {
 import { Link } from "@tanstack/react-router";
 import { cn } from "../../lib/utils";
 import useWorkflowEvents from "../../hooks/react-query/use-sse";
+import { useAtom } from "jotai";
+import { selectedWorkflowAtom } from "../atoms/workflows";
 
 const StatusBadge = ({ status }: { status: string }) => {
   const statusConfig = {
@@ -89,6 +91,7 @@ const Pipelines = () => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const { data, refetch } = useGetWorkflows();
   const mutation = useRunWorkflow();
+  const [, setSelectedWorkflow] = useAtom(selectedWorkflowAtom);
 
   useWorkflowEvents((event) => {
     if (event.type === "workflow") {
@@ -152,8 +155,6 @@ const Pipelines = () => {
       <Table>
         <TableHeader>
           <TableRow className="h-8">
-            {" "}
-            {/* Reduce height */}
             <TableHead className="p-2 text-xs">Project</TableHead>
             <TableHead className="p-2 text-xs">Status</TableHead>
             <TableHead className="p-2 text-xs">Workflow</TableHead>
@@ -178,6 +179,12 @@ const Pipelines = () => {
                   className={cn(
                     run.status ? "text-blue-500 hover:underline" : ""
                   )}
+                  onClick={() => {
+                    setSelectedWorkflow({
+                      id: run.workflowId,
+                      name: run.workflowName,
+                    });
+                  }}
                 >
                   {run.workflowName}
                 </Link>

@@ -4,6 +4,7 @@ import { ContentLayout } from "../components/admin-panel/content-layout";
 import AdminPanelLayout from "../components/admin-panel/admin-panel-layout";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "../components/ui/toaster";
+import WorkflowBreadcrumbs from "../components/workflow-breadcrumbs";
 
 export const Route = createRootRoute({
   component: Root,
@@ -18,7 +19,9 @@ function Root() {
         <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
           <AdminPanelLayout>
             <ContentLayout title="Account">
-              <Outlet />
+              <WorkflowBreadcrumbs>
+                <Outlet />
+              </WorkflowBreadcrumbs>
               <Toaster />
             </ContentLayout>
           </AdminPanelLayout>
