@@ -213,6 +213,19 @@ func (s *WorkflowRunStore) UpdateAllStatuses(workflowID string) error {
 		return fmt.Errorf("failed to update steps status: %w", err)
 	}
 
+	_, err = tx.Exec(`
+		DELETE FROM command_output
+		WHERE step_id IN (SELECT id
+						FROM step_runs
+						WHERE job_id in (SELECT id
+										FROM job_runs
+										WHERE workflow_id = $1))
+	`, workflowID)
+
+	if err != nil {
+		return fmt.Errorf("failed to delete step commands: %w", err)
+	}
+
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}

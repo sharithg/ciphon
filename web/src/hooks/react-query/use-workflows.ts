@@ -29,6 +29,14 @@ type Step = {
   status: string | null;
 };
 
+type CommandOutput = {
+  id: string;
+  step_id: string;
+  stdout: string;
+  type?: string;
+  created_at: string;
+};
+
 export const useGetWorkflows = () => {
   return useQuery({
     queryKey: ["workflows"],
@@ -59,6 +67,20 @@ export const useGetSteps = (workflowId: string, jobId: string) => {
     queryFn: () =>
       fetchData<WithData<Step[]>>(
         `${API_URL}/workflows/${workflowId}/jobs/${jobId}/steps`
+      ),
+  });
+};
+
+export const useGetCommandOutput = (
+  workflowId: string,
+  jobId: string,
+  stepId: string
+) => {
+  return useQuery({
+    queryKey: [`workflows/${workflowId}/jobs/${jobId}/steps/${stepId}/output`],
+    queryFn: () =>
+      fetchData<WithData<CommandOutput[]>>(
+        `${API_URL}/workflows/${workflowId}/jobs/${jobId}/steps/${stepId}/output`
       ),
   });
 };

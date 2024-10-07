@@ -107,14 +107,18 @@ func (app *Application) Mount() http.Handler {
 			r.Post("/connect", app.connectRepoHandler)
 			r.Get("/new", app.getNewReposHandler)
 		})
+
+		r.HandleFunc("/sse/steps/run-events/{stepId}", app.stepEventsHandler)
+		r.HandleFunc("/sse/workflows/run-events", app.eventsHandler)
+
 		r.Route("/workflows", func(r chi.Router) {
 			r.Get("/", app.getWorkflows)
 			r.Post("/trigger/{workflowId}", app.triggerWorkflow)
-			r.HandleFunc("/run-events", app.eventsHandler)
 			r.Route("/{workflowId}", func(r chi.Router) {
 				r.Get("/jobs", app.getJobs)
 				r.Route("/jobs/{jobId}", func(r chi.Router) {
 					r.Get("/steps", app.getSteps)
+					r.Get("/steps/{stepId}/output", app.getStepOutput)
 				})
 			})
 		})

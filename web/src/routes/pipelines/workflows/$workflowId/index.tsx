@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import useWorkflowEvents from "@/hooks/react-query/use-sse";
 import { selectedJobAtom } from "../../../../components/atoms/workflows";
 import { useAtom } from "jotai";
+import { API_URL } from "../../../../hooks/react-query/constants";
 
 export const Route = createFileRoute("/pipelines/workflows/$workflowId/")({
   component: () => (
@@ -39,7 +40,7 @@ function Pipeline() {
 
   const nav = useNavigate();
 
-  useWorkflowEvents((event) => {
+  useWorkflowEvents(`${API_URL}/sse/workflows/run-events`, (event) => {
     if (event.type === "job") {
       refetch();
     }

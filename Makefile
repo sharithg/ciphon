@@ -11,7 +11,7 @@ make-migration:
 	migrate create -ext sql -dir migrations -seq $(name)
 
 migrate-down:
-	migrate -path migrations -database "postgres://postgres:postgres@localhost/siphon?sslmode=disable" down $(id)
+	migrate -path migrations -database "postgres://postgres:postgres@localhost/siphon?sslmode=disable" down
 
 migrate-up:
 	migrate -path migrations -database "postgres://postgres:postgres@localhost/siphon?sslmode=disable" up

@@ -41,6 +41,7 @@ import { cn } from "../../lib/utils";
 import useWorkflowEvents from "../../hooks/react-query/use-sse";
 import { useAtom } from "jotai";
 import { selectedWorkflowAtom } from "../atoms/workflows";
+import { API_URL } from "../../hooks/react-query/constants";
 
 const StatusBadge = ({ status }: { status: string }) => {
   const statusConfig = {
@@ -93,7 +94,7 @@ const Pipelines = () => {
   const mutation = useRunWorkflow();
   const [, setSelectedWorkflow] = useAtom(selectedWorkflowAtom);
 
-  useWorkflowEvents((event) => {
+  useWorkflowEvents(`${API_URL}/sse/workflows/run-events`, (event) => {
     if (event.type === "workflow") {
       refetch();
     }

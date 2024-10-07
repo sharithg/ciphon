@@ -7,9 +7,9 @@ interface WorkflowEvent {
 
 type EventHandler = (event: WorkflowEvent) => void;
 
-const useWorkflowEvents = (handleEvent: EventHandler) => {
+const useWorkflowEvents = (url: string, handleEvent: EventHandler) => {
   useEffect(() => {
-    const evtSource = new EventSource(`${API_URL}/workflows/run-events`);
+    const evtSource = new EventSource(`${API_URL}/sse/workflows/run-events`);
 
     evtSource.onmessage = (event: MessageEvent) => {
       if (event.data) {

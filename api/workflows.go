@@ -44,14 +44,30 @@ func (app *Application) getJobs(w http.ResponseWriter, r *http.Request) {
 func (app *Application) getSteps(w http.ResponseWriter, r *http.Request) {
 	jobId := chi.URLParam(r, "jobId")
 
-	jobs, err := app.Store.StepRunsStore.GetByJobId(jobId)
+	steps, err := app.Store.StepRunsStore.GetByJobId(jobId)
 
 	if err != nil {
 		app.internalServerError(w, r, err)
 		return
 	}
 
-	if err := app.jsonResponse(w, http.StatusOK, jobs); err != nil {
+	if err := app.jsonResponse(w, http.StatusOK, steps); err != nil {
+		app.internalServerError(w, r, err)
+		return
+	}
+}
+
+func (app *Application) getStepOutput(w http.ResponseWriter, r *http.Request) {
+	stepId := chi.URLParam(r, "stepId")
+
+	stepOutputs, err := app.Store.StepRunsStore.GetByStepID(stepId)
+
+	if err != nil {
+		app.internalServerError(w, r, err)
+		return
+	}
+
+	if err := app.jsonResponse(w, http.StatusOK, stepOutputs); err != nil {
 		app.internalServerError(w, r, err)
 		return
 	}
@@ -109,7 +125,6 @@ func (app *Application) eventsHandler(w http.ResponseWriter, r *http.Request) {
 	for {
 		select {
 		case <-ctx.Done():
-			// If the client disconnects, stop sending events.
 			fmt.Println("Client disconnected")
 			return
 		default:
@@ -122,7 +137,59 @@ func (app *Application) eventsHandler(w http.ResponseWriter, r *http.Request) {
 
 			fmt.Println("Recived message: ", msg.Payload)
 
-			fmt.Fprintf(w, "data: %s\n\n", msg.Payload)
+			_, err = fmt.Fprintf(w, "data: %s\n\n", msg.Payload)
+
+			if err != nil {
+				slog.Error("error writing conn", "error", err)
+				return
+			}
+			flusher.Flush()
+		}
+	}
+}
+
+func (app *Application) stepEventsHandler(w http.ResponseWriter, r *http.Request) {
+	stepId := chi.URLParam(r, "stepId")
+
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Expose-Headers", "Content-Type")
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
+		return
+	}
+
+	ctx := r.Context()
+
+	subscriber := app.Cache.Subscribe(ctx, fmt.Sprintf("stepId:%s", stepId))
+
+	for {
+		select {
+		case <-ctx.Done():
+			fmt.Println("Client disconnected")
+			return
+		default:
+			msg, err := subscriber.ReceiveMessage(ctx)
+
+			if err != nil {
+				http.Error(w, "Failed to marshal JSON", http.StatusInternalServerError)
+				return
+			}
+
+			fmt.Println("Recived message: ", msg.Payload)
+
+			_, err = fmt.Fprintf(w, "data: %s\n\n", msg.Payload)
+
+			if err != nil {
+				slog.Error("error writing conn", "error", err)
+				return
+			}
+
 			flusher.Flush()
 		}
 	}

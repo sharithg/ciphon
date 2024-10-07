@@ -33,6 +33,8 @@ type Storage struct {
 		Create(stepRun StepRun) (string, error)
 		GetByJobId(jobId string) ([]Steps, error)
 		UpdateStatus(id string, status string) error
+		CreateCommandOutput(cmd CommandOutput) (string, error)
+		GetByStepID(stepID string) ([]CommandOutput, error)
 	}
 }
 

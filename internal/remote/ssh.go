@@ -182,21 +182,22 @@ func RunCommand(session *ssh.Session, command string, fn streamFunc) error {
 			case line, ok := <-stdoutChan:
 				if !ok {
 					stdoutChan = nil
-					continue
-				}
-				if fn != nil {
-					fn("stdout", []byte(line))
+				} else {
+					if fn != nil {
+						fn("stdout", []byte(line))
+					}
 				}
 			case line, ok := <-stderrChan:
 				if !ok {
 					stderrChan = nil
-					continue
-				}
-				if fn != nil {
-					fn("stderr", []byte(line))
+				} else {
+					if fn != nil {
+						fn("stderr", []byte(line))
+					}
 				}
 			}
 		}
+
 		close(doneChan)
 	}()
 

@@ -6,6 +6,8 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useGetSteps } from "../../../../../hooks/react-query/use-workflows";
 import useWorkflowEvents from "../../../../../hooks/react-query/use-sse";
+import CommandOutput from "../../../../../components/command-output";
+import { API_URL } from "../../../../../hooks/react-query/constants";
 
 export const Route = createLazyFileRoute(
   "/pipelines/workflows/$workflowId/jobs/$jobId"
@@ -31,7 +33,7 @@ function JobSteps() {
     );
   };
 
-  useWorkflowEvents((event) => {
+  useWorkflowEvents(`${API_URL}/sse/workflows/run-events`, (event) => {
     if (event.type === "step") {
       refetch();
     }
@@ -76,11 +78,11 @@ function JobSteps() {
                 </Badge>
               </div>
               {expandedCommands.includes(command.id) && (
-                <div className="bg-muted/30 p-3 rounded-b-lg">
-                  <pre className="whitespace-pre-wrap font-mono text-sm">
-                    echo test
-                  </pre>
-                </div>
+                <CommandOutput
+                  workflowId={workflowId}
+                  jobId={jobId}
+                  stepId={command.id}
+                />
               )}
               {!expandedCommands.includes(command.id) && <Separator />}
             </div>

@@ -45,3 +45,12 @@ CREATE TABLE step_runs (
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+CREATE TABLE command_output (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    step_id UUID REFERENCES step_runs(id) ON DELETE CASCADE,
+    stdout TEXT NOT NULL,
+    type VARCHAR(255) NOT NULL,
+    step_order INT,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+

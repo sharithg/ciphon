@@ -92,3 +92,56 @@ func (s *StepRunStore) UpdateStatus(id, status string) error {
 	}
 	return nil
 }
+
+type CommandOutput struct {
+	ID        string    `json:"id" db:"id"`
+	StepID    string    `json:"step_id" db:"step_id"`
+	Stdout    string    `json:"stdout" db:"stdout"`
+	Type      *string   `json:"type" db:"type"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+}
+
+func (s *StepRunStore) CreateCommandOutput(cmd CommandOutput) (string, error) {
+	var id string
+	query := `
+	INSERT INTO command_output (step_id, stdout, type)
+	VALUES ($1, $2, $3)
+	RETURNING id
+	`
+	err := s.db.QueryRow(query, cmd.StepID, cmd.Stdout, cmd.Type).Scan(&id)
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+func (s *StepRunStore) GetByStepID(stepID string) ([]CommandOutput, error) {
+	var outputs []CommandOutput
+
+	query := `
+	select id, step_id, stdout, type, created_at
+	from command_output
+	where step_id = $1
+	`
+
+	rows, err := s.db.Query(query, stepID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var output CommandOutput
+		err := rows.Scan(&output.ID, &output.StepID, &output.Stdout, &output.Type, &output.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		outputs = append(outputs, output)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return outputs, nil
+}
