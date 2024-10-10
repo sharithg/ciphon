@@ -1,10 +1,11 @@
 package storage
 
 import (
-	"database/sql"
+	"context"
+	"fmt"
 	"time"
 
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 type StepRun struct {
@@ -29,36 +30,39 @@ type Steps struct {
 }
 
 type StepRunStore struct {
-	db *sql.DB
+	pool *pgxpool.Pool
 }
 
-func (s *StepRunStore) Create(st StepRun) (string, error) {
+func NewStepRunStore(pool *pgxpool.Pool) *StepRunStore {
+	return &StepRunStore{pool: pool}
+}
+
+func (s *StepRunStore) Create(ctx context.Context, st StepRun) (string, error) {
 	var id string
 	query := `
 	INSERT INTO step_runs (job_id, step_order, type, name, command, keys, paths)
 	VALUES ($1, $2, $3, $4, $5, $6, $7)
 	RETURNING id
 	`
-	err := s.db.QueryRow(query, st.JobID, st.StepOrder, st.Type, st.Name, st.Command, pq.Array(st.Keys), pq.Array(st.Paths)).Scan(&id)
+	err := s.pool.QueryRow(ctx, query, st.JobID, st.StepOrder, st.Type, st.Name, st.Command, st.Keys, st.Paths).Scan(&id)
 	if err != nil {
 		return "", err
 	}
 	return id, nil
 }
 
-func (s *StepRunStore) GetByJobId(jobId string) ([]Steps, error) {
+func (s *StepRunStore) GetByJobId(ctx context.Context, jobId string) ([]Steps, error) {
 	var steps []Steps
 
 	query := `
-	select type, s.id, s.name, s.command, s.status
-	from step_runs s
-	join job_runs j on s.job_id = j.id
-	where j.id = $1
-	order by step_order
+	SELECT type, s.id, s.name, s.command, s.status
+	FROM step_runs s
+	JOIN job_runs j ON s.job_id = j.id
+	WHERE j.id = $1
+	ORDER BY step_order
 	`
 
-	rows, err := s.db.Query(query, jobId)
-
+	rows, err := s.pool.Query(ctx, query, jobId)
 	if err != nil {
 		return nil, err
 	}
@@ -80,15 +84,16 @@ func (s *StepRunStore) GetByJobId(jobId string) ([]Steps, error) {
 	return steps, nil
 }
 
-func (s *StepRunStore) UpdateStatus(id, status string) error {
+func (s *StepRunStore) UpdateStatus(ctx context.Context, id, status string) error {
 	query := `
-		update step_runs
-		set status = $1
-		where id = $2
+	UPDATE step_runs
+	SET status = $1
+	WHERE id = $2
 	`
-	err := s.db.QueryRow(query, status, id).Err()
+
+	_, err := s.pool.Exec(ctx, query, status, id)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to update step status: %w", err)
 	}
 	return nil
 }
@@ -101,30 +106,30 @@ type CommandOutput struct {
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
 
-func (s *StepRunStore) CreateCommandOutput(cmd CommandOutput) (string, error) {
+func (s *StepRunStore) CreateCommandOutput(ctx context.Context, cmd CommandOutput) (string, error) {
 	var id string
 	query := `
 	INSERT INTO command_output (step_id, stdout, type)
 	VALUES ($1, $2, $3)
 	RETURNING id
 	`
-	err := s.db.QueryRow(query, cmd.StepID, cmd.Stdout, cmd.Type).Scan(&id)
+	err := s.pool.QueryRow(ctx, query, cmd.StepID, cmd.Stdout, cmd.Type).Scan(&id)
 	if err != nil {
 		return "", err
 	}
 	return id, nil
 }
 
-func (s *StepRunStore) GetByStepID(stepID string) ([]CommandOutput, error) {
+func (s *StepRunStore) GetByStepID(ctx context.Context, stepID string) ([]CommandOutput, error) {
 	var outputs []CommandOutput
 
 	query := `
-	select id, step_id, stdout, type, created_at
-	from command_output
-	where step_id = $1
+	SELECT id, step_id, stdout, type, created_at
+	FROM command_output
+	WHERE step_id = $1
 	`
 
-	rows, err := s.db.Query(query, stepID)
+	rows, err := s.pool.Query(ctx, query, stepID)
 	if err != nil {
 		return nil, err
 	}

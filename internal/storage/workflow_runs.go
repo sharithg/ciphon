@@ -1,9 +1,11 @@
 package storage
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"time"
+
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 type WorkflowRun struct {
@@ -15,7 +17,7 @@ type WorkflowRun struct {
 }
 
 type WorkflowRunStore struct {
-	db *sql.DB
+	pool *pgxpool.Pool
 }
 
 type WorkflowRunInfo struct {
@@ -31,35 +33,35 @@ type WorkflowRunInfo struct {
 }
 
 type WorkflowRunSteps struct {
-	JobID     string  `db:"job_id"`
-	StepID    string  `db:"step_id"`
-	Command   string  `db:"command"`
-	Type      string  `db:"type"`
-	Keys      *string `db:"keys"`
-	Paths     *string `db:"paths"`
-	StepOrder int     `db:"step_order"`
-	Url       string  `db:"url"`
-	RepoName  string  `db:"repo_name"`
-	CommitSHA string  `db:"commit_sha"`
-	Branch    string  `db:"branch"`
-	Docker    string  `db:"docker"`
+	JobID     string    `db:"job_id"`
+	StepID    string    `db:"step_id"`
+	Command   string    `db:"command"`
+	Type      string    `db:"type"`
+	Keys      *[]string `db:"keys"`
+	Paths     *[]string `db:"paths"`
+	StepOrder int       `db:"step_order"`
+	Url       string    `db:"url"`
+	RepoName  string    `db:"repo_name"`
+	CommitSHA string    `db:"commit_sha"`
+	Branch    string    `db:"branch"`
+	Docker    string    `db:"docker"`
 }
 
-func (s *WorkflowRunStore) Create(workflowRun WorkflowRun) (string, error) {
+func (s *WorkflowRunStore) Create(ctx context.Context, workflowRun WorkflowRun) (string, error) {
 	var id string
 	query := `
 	INSERT INTO workflow_runs (name, pipeline_run_id)
 	VALUES ($1, $2)
 	RETURNING id
 	`
-	err := s.db.QueryRow(query, workflowRun.Name, workflowRun.PipelineRunID).Scan(&id)
+	err := s.pool.QueryRow(ctx, query, workflowRun.Name, workflowRun.PipelineRunID).Scan(&id)
 	if err != nil {
 		return "", err
 	}
 	return id, nil
 }
 
-func (s *WorkflowRunStore) GetWorkflowRuns() ([]WorkflowRunInfo, error) {
+func (s *WorkflowRunStore) GetWorkflowRuns(ctx context.Context) ([]WorkflowRunInfo, error) {
 	var repos []WorkflowRunInfo
 
 	query := `
@@ -79,7 +81,7 @@ func (s *WorkflowRunStore) GetWorkflowRuns() ([]WorkflowRunInfo, error) {
 		limit 20
 	`
 
-	rows, err := s.db.Query(query)
+	rows, err := s.pool.Query(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +103,7 @@ func (s *WorkflowRunStore) GetWorkflowRuns() ([]WorkflowRunInfo, error) {
 	return repos, nil
 }
 
-func (s *WorkflowRunStore) GetById(id string) ([]WorkflowRunSteps, error) {
+func (s *WorkflowRunStore) GetById(ctx context.Context, id string) ([]WorkflowRunSteps, error) {
 	query := `
 		select j.id as job_id,
 			s.id as step_id,
@@ -124,7 +126,7 @@ func (s *WorkflowRunStore) GetById(id string) ([]WorkflowRunSteps, error) {
 		order by s.step_order
 	`
 
-	rows, err := s.db.Query(query, id)
+	rows, err := s.pool.Query(ctx, query, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
@@ -148,6 +150,7 @@ func (s *WorkflowRunStore) GetById(id string) ([]WorkflowRunSteps, error) {
 			&step.Docker,
 		)
 		if err != nil {
+			fmt.Println("err", err)
 			return nil, err
 		}
 		stepRuns = append(stepRuns, step)
@@ -160,60 +163,60 @@ func (s *WorkflowRunStore) GetById(id string) ([]WorkflowRunSteps, error) {
 	return stepRuns, nil
 }
 
-func (s *WorkflowRunStore) UpdateStatus(id, status string) error {
+func (s *WorkflowRunStore) UpdateStatus(ctx context.Context, id, status string) error {
 	query := `
 		update workflow_runs
 		set status = $1
 		where id = $2
 	`
-	err := s.db.QueryRow(query, status, id).Err()
+	_, err := s.pool.Exec(ctx, query, status, id)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *WorkflowRunStore) UpdateDuration(id string, duration float64) error {
+func (s *WorkflowRunStore) UpdateDuration(ctx context.Context, id string, duration float64) error {
 	query := `
 		update workflow_runs
 		set duration = $1
 		where id = $2
 	`
-	err := s.db.QueryRow(query, duration, id).Err()
+	_, err := s.pool.Exec(ctx, query, duration, id)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *WorkflowRunStore) UpdateAllStatuses(workflowID string) error {
-	tx, err := s.db.Begin()
+func (s *WorkflowRunStore) UpdateAllStatuses(ctx context.Context, workflowID string) error {
+	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
 	defer func() {
 		if err != nil {
-			tx.Rollback()
+			tx.Rollback(ctx)
 		}
 	}()
 
-	_, err = tx.Exec("UPDATE workflow_runs SET status = NULL WHERE id = $1", workflowID)
+	_, err = tx.Exec(ctx, "UPDATE workflow_runs SET status = NULL WHERE id = $1", workflowID)
 	if err != nil {
 		return fmt.Errorf("failed to update workflow_runs status: %w", err)
 	}
 
-	_, err = tx.Exec("UPDATE job_runs SET status = NULL WHERE workflow_id = $1", workflowID)
+	_, err = tx.Exec(ctx, "UPDATE job_runs SET status = NULL WHERE workflow_id = $1", workflowID)
 	if err != nil {
 		return fmt.Errorf("failed to update jobs status: %w", err)
 	}
 
-	_, err = tx.Exec("UPDATE step_runs SET status = NULL WHERE job_id IN (SELECT id FROM job_runs WHERE workflow_id = $1)", workflowID)
+	_, err = tx.Exec(ctx, "UPDATE step_runs SET status = NULL WHERE job_id IN (SELECT id FROM job_runs WHERE workflow_id = $1)", workflowID)
 	if err != nil {
 		return fmt.Errorf("failed to update steps status: %w", err)
 	}
 
-	_, err = tx.Exec(`
+	_, err = tx.Exec(ctx, `
 		DELETE FROM command_output
 		WHERE step_id IN (SELECT id
 						FROM step_runs
@@ -226,7 +229,7 @@ func (s *WorkflowRunStore) UpdateAllStatuses(workflowID string) error {
 		return fmt.Errorf("failed to delete step commands: %w", err)
 	}
 
-	if err = tx.Commit(); err != nil {
+	if err = tx.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 

@@ -1,9 +1,5 @@
 import { atom } from "jotai";
+import { Job, WorklfowRun } from "../../hooks/react-query/use-workflows";
 
-type TItem = {
-  name: string;
-  id: string;
-};
-
-export const selectedWorkflowAtom = atom<TItem | null>(null);
-export const selectedJobAtom = atom<TItem | null>(null);
+export const workflows = atom<WorklfowRun[] | null>(null);
+export const jobs = atom<Job[] | null>(null);

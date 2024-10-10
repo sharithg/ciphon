@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { API_URL } from "./constants";
 
 interface WorkflowEvent {
   type: string;
@@ -9,7 +8,7 @@ type EventHandler = (event: WorkflowEvent) => void;
 
 const useWorkflowEvents = (url: string, handleEvent: EventHandler) => {
   useEffect(() => {
-    const evtSource = new EventSource(`${API_URL}/sse/workflows/run-events`);
+    const evtSource = new EventSource(url);
 
     evtSource.onmessage = (event: MessageEvent) => {
       if (event.data) {
@@ -21,7 +20,7 @@ const useWorkflowEvents = (url: string, handleEvent: EventHandler) => {
     return () => {
       evtSource.close();
     };
-  }, [handleEvent]);
+  }, [handleEvent, url]);
 };
 
 export default useWorkflowEvents;

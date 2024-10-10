@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/sharithg/siphon/internal/remote"
 	"github.com/sharithg/siphon/internal/storage"
 )
@@ -25,15 +27,16 @@ type Node struct {
 	Status string `json:"status"`
 }
 
-func (app *Application) installTools(nodeId string, sshConn *remote.SshConn) {
-	err := sshConn.InstallTools()
+func (app *Application) installTools(ctx context.Context, nodeId, token string, sshConn *remote.SshConn) error {
+	err := sshConn.InstallTools(token)
 	if err != nil {
 		log.Printf("Failed to install tools for node %s: %v", nodeId, err)
-		app.Store.Nodes.UpdateStatus(nodeId, "error")
-		return
+		app.Store.Nodes.UpdateStatus(ctx, nodeId, "error")
+		return err
 	}
 	log.Printf("Successfully installed tools for node %s", nodeId)
-	app.Store.Nodes.UpdateStatus(nodeId, "healthy")
+	app.Store.Nodes.UpdateStatus(ctx, nodeId, "healthy")
+	return nil
 }
 
 func (app *Application) createNodeHandler(w http.ResponseWriter, r *http.Request) {
@@ -97,39 +100,46 @@ func (app *Application) createNodeHandler(w http.ResponseWriter, r *http.Request
 
 	pemFileEncoded := base64.StdEncoding.EncodeToString(fileBytes)
 
+	token := uuid.New().String()
+
 	n := storage.Node{
-		Host:    host,
-		Name:    name,
-		PemFile: pemFileEncoded,
-		User:    user,
-		Port:    port,
+		Host:       host,
+		Name:       name,
+		PemFile:    pemFileEncoded,
+		User:       user,
+		Port:       port,
+		AgentToken: token,
 	}
 
-	id, err := app.Store.Nodes.Create(n)
-
+	id, err := app.Store.Nodes.Create(r.Context(), n)
 	if err != nil {
 		log.Printf("Error adding node to database: %v", err)
 		http.Error(w, "Error creating new node", http.StatusBadRequest)
 		return
 	}
 
+	err = app.installTools(r.Context(), id, token, sshConn)
+
+	if err != nil {
+		app.badRequestResponse(w, r, errors.New("error instaling tools in node"))
+		return
+	}
+
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("Node added successfully"))
-
-	go app.installTools(id, sshConn)
 
 }
 
 func (app *Application) installToolsForNode(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "nodeId")
 
-	node, err := app.Store.Nodes.GetById(idParam)
+	node, err := app.Store.Nodes.GetById(r.Context(), idParam)
 
 	if err != nil {
 		app.internalServerError(w, r, err)
 		return
 	}
-	fmt.Printf("%#v\n", node)
+
 	pemBytes, err := base64.StdEncoding.DecodeString(node.PemFile)
 	if err != nil {
 		app.internalServerError(w, r, fmt.Errorf("failed to decode PEM file: %w", err))
@@ -148,12 +158,12 @@ func (app *Application) installToolsForNode(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	go app.installTools(node.Id, sshConn)
+	go app.installTools(r.Context(), node.Id, node.AgentToken, sshConn)
 
 }
 
 func (app *Application) getNodesHandler(w http.ResponseWriter, r *http.Request) {
-	nodes, err := app.Store.Nodes.All()
+	nodes, err := app.Store.Nodes.All(r.Context())
 
 	var nodesList []Node
 	for _, node := range nodes {

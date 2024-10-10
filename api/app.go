@@ -64,20 +64,20 @@ func (app *Application) Mount() http.Handler {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 
-	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ignoredPaths := map[string]struct{}{
-				"/v1/nodes": {},
-			}
+	// r.Use(func(next http.Handler) http.Handler {
+	// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// 		ignoredPaths := map[string]struct{}{
+	// 			"/v1/nodes": {},
+	// 		}
 
-			if _, ok := ignoredPaths[r.URL.Path]; ok {
-				next.ServeHTTP(w, r)
-				return
-			}
+	// 		if _, ok := ignoredPaths[r.URL.Path]; ok {
+	// 			next.ServeHTTP(w, r)
+	// 			return
+	// 		}
 
-			middleware.Logger(next).ServeHTTP(w, r)
-		})
-	})
+	// 		middleware.Logger(next).ServeHTTP(w, r)
+	// 	})
+	// })
 
 	r.Use(middleware.Recoverer)
 	r.Use(cors.Handler(cors.Options{
@@ -108,8 +108,8 @@ func (app *Application) Mount() http.Handler {
 			r.Get("/new", app.getNewReposHandler)
 		})
 
-		r.HandleFunc("/sse/steps/run-events/{stepId}", app.stepEventsHandler)
-		r.HandleFunc("/sse/workflows/run-events", app.eventsHandler)
+		// r.HandleFunc("/sse/steps/run-events/{stepId}", app.stepEventsHandler)
+		// r.HandleFunc("/sse/workflows/run-events", app.eventsHandler)
 
 		r.Route("/workflows", func(r chi.Router) {
 			r.Get("/", app.getWorkflows)

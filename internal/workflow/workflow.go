@@ -5,13 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/gorilla/websocket"
 	"github.com/sharithg/siphon/internal/remote"
 	"github.com/sharithg/siphon/internal/storage"
-	"golang.org/x/crypto/ssh"
+	"github.com/sharithg/siphon/ws"
 )
 
 type WorkflowManager struct {
@@ -35,19 +38,16 @@ func New(s *storage.Storage, c string, r *redis.Client) *WorkflowManager {
 }
 
 func (wm *WorkflowManager) TriggerWorkflow(ctx context.Context, workflowId string) error {
-	workflows, err := wm.getWorkflowsByID(workflowId)
+	workflows, err := wm.getWorkflowsByID(ctx, workflowId)
+
 	if err != nil {
 		return err
 	}
 
 	jobMap := wm.partitionWorkflowsByJob(workflows)
 
-	nodes, err := wm.store.Nodes.All()
-	if err != nil {
-		return err
-	}
+	nodes, err := wm.store.Nodes.All(ctx)
 
-	client, err := wm.initializeSSH(nodes[0])
 	if err != nil {
 		return err
 	}
@@ -59,7 +59,7 @@ func (wm *WorkflowManager) TriggerWorkflow(ctx context.Context, workflowId strin
 			slog.Error("error updating workflow status: %w", "err", err)
 		}
 
-		if err := wm.executeJob(ctx, client, steps, nodes[0]); err != nil {
+		if err := wm.executeJob(ctx, steps, nodes[0]); err != nil {
 			if err := wm.updateJobStatus(ctx, jobId, "failed"); err != nil {
 				slog.Error("error updating workflow status: %w", "err", err)
 			}
@@ -78,7 +78,7 @@ func (wm *WorkflowManager) updateJobStatus(ctx context.Context, jobId, status st
 	if err := wm.cache.Publish(ctx, "job_run", eventPayload).Err(); err != nil {
 		return err
 	}
-	if err := wm.store.JobRunsStore.UpdateStatus(jobId, status); err != nil {
+	if err := wm.store.JobRunsStore.UpdateStatus(ctx, jobId, status); err != nil {
 		return err
 	}
 	return nil
@@ -89,14 +89,15 @@ func (wm *WorkflowManager) updateStepStatus(ctx context.Context, stepId, status 
 	if err := wm.cache.Publish(ctx, "step_run", eventPayload).Err(); err != nil {
 		return err
 	}
-	if err := wm.store.StepRunsStore.UpdateStatus(stepId, status); err != nil {
+
+	if err := wm.store.StepRunsStore.UpdateStatus(ctx, stepId, status); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (wm *WorkflowManager) getWorkflowsByID(workflowId string) ([]storage.WorkflowRunSteps, error) {
-	workflows, err := wm.store.WorkflowRunsStore.GetById(workflowId)
+func (wm *WorkflowManager) getWorkflowsByID(ctx context.Context, workflowId string) ([]storage.WorkflowRunSteps, error) {
+	workflows, err := wm.store.WorkflowRunsStore.GetById(ctx, workflowId)
 	if err != nil {
 		return nil, err
 	}
@@ -116,204 +117,172 @@ func (wm *WorkflowManager) partitionWorkflowsByJob(workflows []storage.WorkflowR
 	return jobMap
 }
 
-func (wm *WorkflowManager) initializeSSH(node storage.Node) (*ssh.Client, error) {
-	sshConn, err := remote.New(node.Host, node.User, []byte(node.PemFile), true)
+func (wm *WorkflowManager) executeJob(ctx context.Context, steps []storage.WorkflowRunSteps, node storage.Node) error {
+
+	headers := http.Header{}
+	headers.Set("X-Ciphon-Auth", node.AgentToken)
+
+	fmt.Println("connecting: ", fmt.Sprintf("ws://%s:8888/ws", node.Host), node.AgentToken)
+	wsConn, _, err := websocket.DefaultDialer.Dial(fmt.Sprintf("ws://%s:8888/ws", node.Host), headers)
 	if err != nil {
-		return nil, err
+		slog.Error("error connecting to agent", "err", err)
+		return err
+	}
+	defer wsConn.Close()
+
+	commands, err := wm.getSteps(steps, node)
+	if err != nil {
+		return err
 	}
 
-	client, err := sshConn.Dial()
+	cmdData, err := json.Marshal(commands)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return client, nil
+	if err = wsConn.WriteMessage(websocket.TextMessage, cmdData); err != nil {
+		return err
+	}
+
+	// Create a timeout context to avoid infinite looping if no messages arrive
+	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+
+	i := 0
+
+	for {
+		i = i + 1
+		select {
+		case <-timeoutCtx.Done():
+			slog.Error("timeout exceeded waiting for WebSocket messages")
+			return fmt.Errorf("timeout exceeded")
+		default:
+
+			// Read a message from websocket connection
+			_, msg, err := wsConn.ReadMessage()
+
+			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
+				slog.Error("websocket connection closed")
+				return fmt.Errorf("websocket connection closed")
+			}
+
+			if err != nil {
+				slog.Error("error reading WebSocket message", "err", err)
+				return err
+			}
+
+			var output ws.CommandOutput
+			if err = json.Unmarshal(msg, &output); err != nil {
+				slog.Error("error unmarshalling output", "error", err)
+				return err
+			}
+
+			fmt.Printf("Received message: %s\n", string(msg))
+
+			switch output.CmdType {
+			case "done":
+				slog.Info("received done message, exiting")
+				return nil
+			case "error":
+				if err := wm.updateStepStatus(ctx, output.Id, "failed"); err != nil {
+					slog.Error("error updating step status", "err", err)
+				}
+			case "running":
+				if err := wm.updateStepStatus(ctx, output.Id, "running"); err != nil {
+					slog.Error("error updating step status", "err", err)
+				}
+			case "doneCmd":
+				if output.Id != "" {
+					if err := wm.updateStepStatus(ctx, output.Id, "success"); err != nil {
+						slog.Error("error updating step status", "err", err)
+						return nil
+					}
+				}
+			case "cmd":
+				if err = wm.saveCommandOutput(ctx, output.Id, output.OutputType, output.Output); err != nil {
+					slog.Error("error updating step status", "err", err)
+					return nil
+				}
+			default:
+				slog.Warn("received unknown command type", "CmdType", output.CmdType)
+			}
+
+		}
+
+	}
+
 }
 
-func (wm *WorkflowManager) executeJob(ctx context.Context, client *ssh.Client, steps []storage.WorkflowRunSteps, node storage.Node) error {
-	// Shared data for the job
-	gitUrl := steps[0].Url
-	repoName := steps[0].RepoName
-	ref := steps[0].Branch
-
-	defer func() {
-		go wm.stopDockerImage(ctx, client, steps[0].StepID, repoName)
-	}()
+func (wm *WorkflowManager) getSteps(steps []storage.WorkflowRunSteps, node storage.Node) (*ws.Commands, error) {
+	var commands []ws.Command
+	workDir := "/"
 
 	for _, step := range steps {
-		if err := wm.updateStepStatus(ctx, step.StepID, "running"); err != nil {
-			slog.Error("error updating step status: %w", "err", err)
-		}
-		if err := wm.executeStep(ctx, client, step, gitUrl, repoName, ref, node); err != nil {
-			if err := wm.updateStepStatus(ctx, step.StepID, "failed"); err != nil {
-				slog.Error("error updating step status: %w", "err", err)
+
+		switch step.Type {
+		case "checkout":
+			token, err := remote.GenerateJWTToken([]byte(node.PemFile), wm.githubClientId)
+			if err != nil {
+				return nil, err
 			}
-			return err
-		}
-		if err := wm.updateStepStatus(ctx, step.StepID, "success"); err != nil {
-			slog.Error("error updating step status: %w", "err", err)
+			cloneUrl, err := convertGitHubURL(step.Url, token)
+			if err != nil {
+				return nil, err
+			}
+
+			commands = append(commands, ws.Command{
+				Id:    step.StepID,
+				Cmd:   fmt.Sprintf("git clone %s && cd %s && git fetch origin && git checkout %s && git log -1", cloneUrl, step.RepoName, step.Branch),
+				Order: step.StepOrder,
+			})
+
+			workDir = fmt.Sprintf("/%s", step.RepoName)
+
+		case "restore_cache":
+			commands = append(commands, ws.Command{
+				Id:      step.StepID,
+				Cmd:     "echo 'restore_cache'",
+				Order:   step.StepOrder,
+				WorkDir: workDir,
+			})
+		case "save_cache":
+			commands = append(commands, ws.Command{
+				Id:      step.StepID,
+				Cmd:     "echo 'restore_cache'",
+				Order:   step.StepOrder,
+				WorkDir: workDir,
+			})
+		default:
+			commands = append(commands, ws.Command{
+				Id:      step.StepID,
+				Cmd:     step.Command,
+				Order:   step.StepOrder,
+				WorkDir: workDir,
+			})
 		}
 	}
 
-	return nil
+	payload := &ws.Commands{
+		BaseEvent: ws.BaseEvent{
+			Type: "run_command",
+		},
+		Image:    steps[0].Docker,
+		Commands: commands,
+	}
+
+	return payload, nil
 }
 
-func (wm *WorkflowManager) executeStep(ctx context.Context, client *ssh.Client, step storage.WorkflowRunSteps, gitUrl, repoName, ref string, node storage.Node) error {
-	switch step.Type {
-	case "checkout":
-		if err := wm.pullDockerImage(ctx, client, step.StepID, step.Docker); err != nil {
-			return err
-		}
+func (wm *WorkflowManager) saveCommandOutput(ctx context.Context, stepId string, streamType, output string) error {
 
-		if err := wm.runBackgroundDockerImage(ctx, client, step.StepID, step.Docker, repoName); err != nil {
-			return err
-		}
-
-		if err := wm.checkout(ctx, client, node.PemFile, gitUrl, step.StepID, repoName, ref); err != nil {
-			return err
-		}
-
-	case "restore_cache":
-		fmt.Printf("step %s (restore_cache) not implemented\n", step.StepID)
-
-	case "save_cache":
-		fmt.Printf("step %s (save_cache) not implemented\n", step.StepID)
-
-	default:
-		cmd := fmt.Sprintf(`
-			docker exec -w /%s %s sh -c "%s"
-		`, repoName, repoName, step.Command)
-		if err := wm.runStepCommand(ctx, client, step.StepID, cmd); err != nil {
-			return err
-		}
+	cmd := storage.CommandOutput{
+		StepID: stepId,
+		Type:   &streamType,
+		Stdout: output,
 	}
+	_, err := wm.store.StepRunsStore.CreateCommandOutput(ctx, cmd)
 
-	return nil
-}
-
-func (wm *WorkflowManager) saveCommandOutput(ctx context.Context, stepId string) func(streamType string, output []byte) {
-
-	saveOut := func(streamType string, output []byte) {
-		cmd := storage.CommandOutput{
-			StepID: stepId,
-			Type:   &streamType,
-			Stdout: string(output),
-		}
-		_, err := wm.store.StepRunsStore.CreateCommandOutput(cmd)
-
-		eventPayload := WorkflowRun{Id: stepId, Status: "", Type: "step"}
-
-		if err := wm.cache.Publish(ctx, fmt.Sprintf("stepId:%s", stepId), eventPayload).Err(); err != nil {
-			slog.Error("error puslihsing command event", "error", err)
-		}
-		if err != nil {
-			slog.Error("error saving command", "error", err)
-		}
-	}
-
-	return saveOut
-}
-
-func (wm *WorkflowManager) runStepCommand(ctx context.Context, client *ssh.Client, stepId, command string) error {
-	session, err := client.NewSession()
 	if err != nil {
-		return fmt.Errorf("failed to create SSH session for docker pull: %w", err)
-	}
-	defer session.Close()
-
-	if err := remote.RunCommand(session, command, wm.saveCommandOutput(ctx, stepId)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (wm *WorkflowManager) checkout(ctx context.Context, client *ssh.Client, pemContent, gitUrl, stepId, name, ref string) error {
-	session, err := client.NewSession()
-	if err != nil {
-		return fmt.Errorf("failed to create SSH session for checkout: %w", err)
-	}
-	defer session.Close()
-
-	token, err := remote.GenerateJWTToken([]byte(pemContent), wm.githubClientId)
-	if err != nil {
-		return err
-	}
-
-	cloneUrl, err := convertGitHubURL(gitUrl, token)
-	if err != nil {
-		return err
-	}
-
-	command := fmt.Sprintf(`
-    docker exec %s sh -c "
-        pwd
-        git clone %s
-        cd %s && git fetch origin && git checkout %s
-		git log -1
-    "
-	`, name, cloneUrl, name, ref)
-
-	if err := remote.RunCommand(session, command, wm.saveCommandOutput(ctx, stepId)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (wm *WorkflowManager) pullDockerImage(ctx context.Context, client *ssh.Client, stepId string, docker string) error {
-	session, err := client.NewSession()
-	if err != nil {
-		return fmt.Errorf("failed to create SSH session for docker pull: %w", err)
-	}
-	defer session.Close()
-
-	command := fmt.Sprintf(`
-        docker pull %s
-    `, docker)
-
-	if err := remote.RunCommand(session, command, wm.saveCommandOutput(ctx, stepId)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (wm *WorkflowManager) runBackgroundDockerImage(ctx context.Context, client *ssh.Client, stepId, imageName, repoName string) error {
-	session, err := client.NewSession()
-	if err != nil {
-		return fmt.Errorf("failed to create SSH session for docker run: %w", err)
-	}
-	defer session.Close()
-
-	command := fmt.Sprintf(`
-        docker run -d -v /home/ubuntu/%s:/app/%s --name %s %s tail -f /dev/null
-    `, repoName, repoName, repoName, imageName)
-
-	if err := remote.RunCommand(session, command, wm.saveCommandOutput(ctx, stepId)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (wm *WorkflowManager) stopDockerImage(ctx context.Context, client *ssh.Client, stepId, repoName string) error {
-	session, err := client.NewSession()
-	if err != nil {
-		return fmt.Errorf("failed to create SSH session for docker stop: %w", err)
-	}
-	defer session.Close()
-
-	command := fmt.Sprintf(`
-		if [ "$(docker ps -q -f name=%s)" ]; then
-			docker stop %s
-		fi
-		if [ "$(docker ps -aq -f name=%s)" ]; then
-			docker rm %s
-		fi
-    `, repoName, repoName, repoName, repoName)
-
-	if err := remote.RunCommand(session, command, wm.saveCommandOutput(ctx, stepId)); err != nil {
 		return err
 	}
 

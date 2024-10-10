@@ -1,50 +1,54 @@
 package storage
 
-import "database/sql"
+import (
+	"context"
+
+	"github.com/jackc/pgx/v4/pgxpool"
+)
 
 type Storage struct {
 	Nodes interface {
-		All() ([]Node, error)
-		GetById(id string) (*Node, error)
-		Create(node Node) (string, error)
-		UpdateStatus(nodeID string, status string) error
+		All(ctx context.Context) ([]Node, error)
+		GetById(ctx context.Context, id string) (*Node, error)
+		Create(ctx context.Context, node Node) (string, error)
+		UpdateStatus(ctx context.Context, nodeID string, status string) error
 	}
 	Repos interface {
-		All() ([]ListRepo, error)
-		Create(repo CreateRepo) (string, error)
+		All(ctx context.Context) ([]ListRepo, error)
+		Create(ctx context.Context, repo CreateRepo) (string, error)
 	}
 	PipelineRunsStore interface {
-		Create(pipelineRun PipelineRun) (string, error)
+		Create(ctx context.Context, pipelineRun PipelineRun) (string, error)
 	}
 	WorkflowRunsStore interface {
-		Create(workflowRun WorkflowRun) (string, error)
-		GetWorkflowRuns() ([]WorkflowRunInfo, error)
-		GetById(id string) ([]WorkflowRunSteps, error)
-		UpdateStatus(id string, status string) error
-		UpdateDuration(id string, duration float64) error
-		UpdateAllStatuses(workflowID string) error
+		Create(ctx context.Context, workflowRun WorkflowRun) (string, error)
+		GetWorkflowRuns(ctx context.Context) ([]WorkflowRunInfo, error)
+		GetById(ctx context.Context, id string) ([]WorkflowRunSteps, error)
+		UpdateStatus(ctx context.Context, id string, status string) error
+		UpdateDuration(ctx context.Context, id string, duration float64) error
+		UpdateAllStatuses(ctx context.Context, workflowID string) error
 	}
 	JobRunsStore interface {
-		Create(jobRun JobRun) (string, error)
-		GetByWorkflowId(workflowId string) ([]Jobs, error)
-		UpdateStatus(id string, status string) error
+		Create(ctx context.Context, jobRun JobRun) (string, error)
+		GetByWorkflowId(ctx context.Context, workflowId string) ([]Jobs, error)
+		UpdateStatus(ctx context.Context, id string, status string) error
 	}
 	StepRunsStore interface {
-		Create(stepRun StepRun) (string, error)
-		GetByJobId(jobId string) ([]Steps, error)
-		UpdateStatus(id string, status string) error
-		CreateCommandOutput(cmd CommandOutput) (string, error)
-		GetByStepID(stepID string) ([]CommandOutput, error)
+		Create(ctx context.Context, stepRun StepRun) (string, error)
+		GetByJobId(ctx context.Context, jobId string) ([]Steps, error)
+		UpdateStatus(ctx context.Context, id string, status string) error
+		CreateCommandOutput(ctx context.Context, cmd CommandOutput) (string, error)
+		GetByStepID(ctx context.Context, stepID string) ([]CommandOutput, error)
 	}
 }
 
-func NewStorage(db *sql.DB) *Storage {
+func NewStorage(pool *pgxpool.Pool) *Storage {
 	return &Storage{
-		Nodes:             &NodeStore{db},
-		Repos:             &RepoStore{db},
-		PipelineRunsStore: &PipelineRunStore{db},
-		WorkflowRunsStore: &WorkflowRunStore{db},
-		JobRunsStore:      &JobRunStore{db},
-		StepRunsStore:     &StepRunStore{db},
+		Nodes:             &NodeStore{pool},
+		Repos:             &RepoStore{pool},
+		PipelineRunsStore: &PipelineRunStore{pool},
+		WorkflowRunsStore: &WorkflowRunStore{pool},
+		JobRunsStore:      &JobRunStore{pool},
+		StepRunsStore:     &StepRunStore{pool},
 	}
 }

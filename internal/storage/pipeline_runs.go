@@ -1,8 +1,10 @@
 package storage
 
 import (
-	"database/sql"
+	"context"
 	"time"
+
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 type PipelineRun struct {
@@ -18,17 +20,17 @@ type PipelineRun struct {
 }
 
 type PipelineRunStore struct {
-	db *sql.DB
+	pool *pgxpool.Pool
 }
 
-func (s *PipelineRunStore) Create(p PipelineRun) (string, error) {
+func (s *PipelineRunStore) Create(ctx context.Context, p PipelineRun) (string, error) {
 	var id string
 	query := `
 	INSERT INTO pipeline_runs (commit_sha, repo_id, config_file, branch, status)
 	VALUES ($1, $2, $3, $4, $5)
 	RETURNING id
 	`
-	err := s.db.QueryRow(query, p.CommitSHA, p.RepoId, p.ConfigFile, p.Branch, p.Status).Scan(&id)
+	err := s.pool.QueryRow(ctx, query, p.CommitSHA, p.RepoId, p.ConfigFile, p.Branch, p.Status).Scan(&id)
 	if err != nil {
 		return "", err
 	}

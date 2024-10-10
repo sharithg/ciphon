@@ -12,10 +12,6 @@ import "@xyflow/react/dist/base.css";
 import CustomNode from "@/components/custom-node";
 import { useGetJobs } from "@/hooks/react-query/use-workflows";
 import { useEffect, useState } from "react";
-import useWorkflowEvents from "@/hooks/react-query/use-sse";
-import { selectedJobAtom } from "../../../../components/atoms/workflows";
-import { useAtom } from "jotai";
-import { API_URL } from "../../../../hooks/react-query/constants";
 
 export const Route = createFileRoute("/pipelines/workflows/$workflowId/")({
   component: () => (
@@ -33,18 +29,17 @@ const edges: Edge[] = [];
 
 function Pipeline() {
   const params = Route.useParams();
-  const { data, refetch } = useGetJobs(params.workflowId);
+  const { data } = useGetJobs(params.workflowId);
 
   const [nodes, setNodes] = useState<Node[]>([]);
-  const [, setSelectedJob] = useAtom(selectedJobAtom);
 
   const nav = useNavigate();
 
-  useWorkflowEvents(`${API_URL}/sse/workflows/run-events`, (event) => {
-    if (event.type === "job") {
-      refetch();
-    }
-  });
+  // useWorkflowEvents(`${API_URL}/sse/workflows/run-events`, (event) => {
+  //   if (event.type === "job") {
+  //     refetch();
+  //   }
+  // });
 
   useEffect(() => {
     if (data?.data) {
@@ -81,10 +76,6 @@ function Pipeline() {
           // Optional if you also want to lock zooming
           zoomOnDoubleClick={false}
           onNodeClick={(_, node) => {
-            setSelectedJob({
-              id: node.id,
-              name: node.data.label as string,
-            });
             nav({
               to: `/pipelines/workflows/${params.workflowId}/jobs/${node.id}`,
             });

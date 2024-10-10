@@ -7,50 +7,78 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useAtom } from "jotai";
-import { selectedJobAtom, selectedWorkflowAtom } from "./atoms/workflows";
+import { jobs, workflows } from "./atoms/workflows";
+import { useMemo } from "react";
 
 function getPathType(path: string) {
-  const workflowRegex = /^\/pipelines\/workflows\/[a-f0-9-]+$/;
-  const jobsRegex = /^\/pipelines\/workflows\/[a-f0-9-]+\/jobs\/[a-f0-9-]+$/;
+  const workflowRegex = /^\/pipelines\/workflows\/([a-f0-9-]+)$/;
+  const jobsRegex =
+    /^\/pipelines\/workflows\/([a-f0-9-]+)\/jobs\/([a-f0-9-]+)$/;
 
-  if (jobsRegex.test(path)) {
-    return "jobs";
-  } else if (workflowRegex.test(path)) {
-    return "workflow";
+  const jobsMatch = jobsRegex.exec(path);
+  if (jobsMatch) {
+    return {
+      type: "jobs",
+      workflowId: jobsMatch[1],
+      jobId: jobsMatch[2],
+    };
   }
+
+  const workflowMatch = workflowRegex.exec(path);
+  if (workflowMatch) {
+    return {
+      type: "workflow",
+      workflowId: workflowMatch[1],
+    };
+  }
+
   return null;
 }
 
 const WorkflowBreadcrumbs = ({ children }: { children: React.ReactNode }) => {
-  const [selectedJob] = useAtom(selectedJobAtom);
-  const [selectedWorkflow] = useAtom(selectedWorkflowAtom);
+  const [allJobs] = useAtom(jobs);
+  const [allWorkflows] = useAtom(workflows);
   const router = useRouterState();
   const currentPath = getPathType(router.location.pathname);
+
+  const selectedWorkflow = useMemo(
+    () =>
+      (allWorkflows ?? []).find(
+        (j) => j.workflowId === currentPath?.workflowId
+      ),
+    [allWorkflows, currentPath]
+  );
+  const selectedJob = useMemo(
+    () => (allJobs ?? []).find((j) => j.id === currentPath?.jobId),
+    [allJobs, currentPath]
+  );
 
   return (
     <>
       <Breadcrumb>
         <BreadcrumbList>
-          {selectedWorkflow &&
-            (currentPath === "workflow" || currentPath === "jobs") && (
-              <>
-                <BreadcrumbItem>
-                  <BreadcrumbLink>
-                    <Link to="/pipelines">Workflows</Link>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbLink>{selectedWorkflow.name}</BreadcrumbLink>
-                </BreadcrumbItem>
-              </>
-            )}
-          {selectedJob && selectedWorkflow && currentPath === "jobs" && (
+          {(currentPath?.type === "workflow" ||
+            currentPath?.type === "jobs") && (
+            <>
+              <BreadcrumbItem>
+                <BreadcrumbLink>
+                  <Link to="/pipelines">Workflows</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink>
+                  {selectedWorkflow?.workflowName}
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+            </>
+          )}
+          {selectedJob && currentPath?.type === "jobs" && (
             <>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 <BreadcrumbLink>
-                  <Link to={`/pipelines/workflows/${selectedWorkflow.id}`}>
+                  <Link to={`/pipelines/workflows/${currentPath.workflowId}`}>
                     Jobs
                   </Link>
                 </BreadcrumbLink>

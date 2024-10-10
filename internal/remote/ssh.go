@@ -122,7 +122,6 @@ func streamOutput(name string, pipe io.Reader, fn streamFunc) {
 }
 
 func RunCommand(session *ssh.Session, command string, fn streamFunc) error {
-
 	fmt.Println(Green + command + Reset)
 
 	stdout, err := session.StdoutPipe()
@@ -142,9 +141,8 @@ func RunCommand(session *ssh.Session, command string, fn streamFunc) error {
 		return fmt.Errorf("failed to start command: %w", err)
 	}
 
-	// Create channels to read from stdout and stderr
-	stdoutChan := make(chan string)
-	stderrChan := make(chan string)
+	stdoutChan := make(chan string, 1) // Buffered channel
+	stderrChan := make(chan string, 1) // Buffered channel
 	doneChan := make(chan struct{})
 
 	go func() {
@@ -175,15 +173,15 @@ func RunCommand(session *ssh.Session, command string, fn streamFunc) error {
 		}
 	}()
 
-	// Read from stdout and stderr channels in order
 	go func() {
-		for stdoutChan != nil || stderrChan != nil {
+		for {
 			select {
 			case line, ok := <-stdoutChan:
 				if !ok {
 					stdoutChan = nil
 				} else {
 					if fn != nil {
+						fmt.Print("[stdout]", line)
 						fn("stdout", []byte(line))
 					}
 				}
@@ -192,12 +190,17 @@ func RunCommand(session *ssh.Session, command string, fn streamFunc) error {
 					stderrChan = nil
 				} else {
 					if fn != nil {
+						fmt.Print("[stderr]", line)
 						fn("stderr", []byte(line))
 					}
 				}
 			}
-		}
 
+			// Exit if both channels are closed
+			if stdoutChan == nil && stderrChan == nil {
+				break
+			}
+		}
 		close(doneChan)
 	}()
 
@@ -207,6 +210,7 @@ func RunCommand(session *ssh.Session, command string, fn streamFunc) error {
 
 	<-doneChan
 
+	fmt.Println("Finished cmd")
 	return nil
 }
 

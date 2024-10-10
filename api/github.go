@@ -33,7 +33,7 @@ func (app *Application) getNewReposHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	existingRepos, err := app.Store.Repos.All()
+	existingRepos, err := app.Store.Repos.All(r.Context())
 
 	existingRepoSet := make(map[int64]struct{})
 	for _, repo := range existingRepos {
@@ -68,7 +68,7 @@ func (app *Application) getNewReposHandler(w http.ResponseWriter, r *http.Reques
 }
 
 func (app *Application) getReposHandler(w http.ResponseWriter, r *http.Request) {
-	repos, err := app.Store.Repos.All()
+	repos, err := app.Store.Repos.All(r.Context())
 
 	if err != nil {
 		app.internalServerError(w, r, err)
@@ -116,7 +116,7 @@ func (app *Application) connectRepoHandler(w http.ResponseWriter, r *http.Reques
 		RawData:       string(b),
 	}
 
-	id, err := app.Store.Repos.Create(newRepo)
+	id, err := app.Store.Repos.Create(r.Context(), newRepo)
 
 	if err != nil {
 		app.internalServerError(w, r, err)

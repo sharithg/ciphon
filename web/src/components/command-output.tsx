@@ -1,14 +1,13 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import { useGetCommandOutput } from "@/hooks/react-query/use-workflows";
-import { API_URL } from "../hooks/react-query/constants";
-import useWorkflowEvents from "../hooks/react-query/use-sse";
 
 const CommandOutput = (input: {
   workflowId: string;
   jobId: string;
   stepId: string;
+  status: string | null;
 }) => {
-  const { data, refetch } = useGetCommandOutput(
+  const { data } = useGetCommandOutput(
     input.workflowId,
     input.jobId,
     input.stepId
@@ -23,15 +22,6 @@ const CommandOutput = (input: {
     }
   }, [outputs]);
 
-  useWorkflowEvents(
-    `${API_URL}/sse/steps/run-events/${input.stepId}`,
-    (event) => {
-      if (event.type === "step") {
-        refetch();
-      }
-    }
-  );
-
   return (
     <div
       ref={containerRef}
@@ -39,7 +29,10 @@ const CommandOutput = (input: {
     >
       <pre className="whitespace-pre-wrap font-mono text-sm">
         {outputs.map((v, index) => (
-          <span key={index}>{v.stdout}</span>
+          <>
+            <span key={index}>{v.stdout}</span>
+            <br />
+          </>
         ))}
       </pre>
     </div>

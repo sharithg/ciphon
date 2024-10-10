@@ -79,12 +79,12 @@ func (h *GhWebhookHandler) Handle(ctx context.Context, eventType, deliveryID str
 		return wrappedErrorWithLog(err, "failed to read config contents")
 	}
 
-	go h.handlePushEvent(event, config)
+	go h.handlePushEvent(ctx, event, config)
 
 	return nil
 }
 
-func (h *GhWebhookHandler) handlePushEvent(event github.PushEvent, configStr string) {
+func (h *GhWebhookHandler) handlePushEvent(ctx context.Context, event github.PushEvent, configStr string) {
 
 	headCommit := event.HeadCommit
 
@@ -112,7 +112,7 @@ func (h *GhWebhookHandler) handlePushEvent(event github.PushEvent, configStr str
 		return
 	}
 
-	pipelineId, err := h.app.Store.PipelineRunsStore.Create(pipelineRun)
+	pipelineId, err := h.app.Store.PipelineRunsStore.Create(ctx, pipelineRun)
 
 	if err != nil {
 		slog.Error("error creating pipeline run", "error", err)
@@ -125,7 +125,7 @@ func (h *GhWebhookHandler) handlePushEvent(event github.PushEvent, configStr str
 			PipelineRunID: pipelineId,
 		}
 
-		workflowId, err := h.app.Store.WorkflowRunsStore.Create(workflowRun)
+		workflowId, err := h.app.Store.WorkflowRunsStore.Create(ctx, workflowRun)
 
 		if err != nil {
 			slog.Error("error creating workflow", "error", err)
@@ -146,7 +146,7 @@ func (h *GhWebhookHandler) handlePushEvent(event github.PushEvent, configStr str
 				Docker:     job.Docker,
 				Node:       job.Node,
 			}
-			jobId, err := h.app.Store.JobRunsStore.Create(jobRun)
+			jobId, err := h.app.Store.JobRunsStore.Create(ctx, jobRun)
 
 			if err != nil {
 				slog.Error("error creating job", "error", err)
@@ -174,7 +174,7 @@ func (h *GhWebhookHandler) handlePushEvent(event github.PushEvent, configStr str
 					StepOrder: idx,
 				}
 
-				_, err := h.app.Store.StepRunsStore.Create(stepRun)
+				_, err := h.app.Store.StepRunsStore.Create(ctx, stepRun)
 
 				if err != nil {
 					slog.Error("error creating step", "error", err)

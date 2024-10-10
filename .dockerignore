@@ -1,0 +1,7 @@
+vendor/bundle/**/*
+vendor/bundle
+web
+scripts
+scratch
+tmp
+.env

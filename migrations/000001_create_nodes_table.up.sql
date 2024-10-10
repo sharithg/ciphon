@@ -6,6 +6,7 @@ CREATE TABLE nodes (
     username VARCHAR(255) NOT NULL,
     pem_file TEXT NOT NULL,
     status VARCHAR(50) DEFAULT 'provisioning' NOT NULL,
+    agent_token VARCHAR(255) NOT NULL,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );

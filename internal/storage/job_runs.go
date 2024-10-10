@@ -1,8 +1,10 @@
 package storage
 
 import (
-	"database/sql"
+	"context"
 	"time"
+
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 type JobRun struct {
@@ -22,32 +24,33 @@ type Jobs struct {
 }
 
 type JobRunStore struct {
-	db *sql.DB
+	pool *pgxpool.Pool
 }
 
-func (s *JobRunStore) Create(jobRun JobRun) (string, error) {
+func (s *JobRunStore) Create(ctx context.Context, jobRun JobRun) (string, error) {
 	var id string
 	query := `
 	INSERT INTO job_runs (workflow_id, name, docker, node)
 	VALUES ($1, $2, $3, $4)
 	RETURNING id
 	`
-	err := s.db.QueryRow(query, jobRun.WorkflowID, jobRun.Name, jobRun.Docker, jobRun.Node).Scan(&id)
+	err := s.pool.QueryRow(ctx, query, jobRun.WorkflowID, jobRun.Name, jobRun.Docker, jobRun.Node).Scan(&id)
 	if err != nil {
 		return "", err
 	}
 	return id, nil
 }
 
-func (s *JobRunStore) GetByWorkflowId(workflowId string) ([]Jobs, error) {
+func (s *JobRunStore) GetByWorkflowId(ctx context.Context, workflowId string) ([]Jobs, error) {
 	var jobs []Jobs
 
 	query := `
-	select id, name, status from job_runs
-	where workflow_id = $1
+	SELECT id, name, status 
+	FROM job_runs 
+	WHERE workflow_id = $1
 	`
 
-	rows, err := s.db.Query(query, workflowId)
+	rows, err := s.pool.Query(ctx, query, workflowId)
 
 	if err != nil {
 		return nil, err
@@ -70,13 +73,13 @@ func (s *JobRunStore) GetByWorkflowId(workflowId string) ([]Jobs, error) {
 	return jobs, nil
 }
 
-func (s *JobRunStore) UpdateStatus(id, status string) error {
+func (s *JobRunStore) UpdateStatus(ctx context.Context, id, status string) error {
 	query := `
-		update job_runs
-		set status = $1
-		where id = $2
+	UPDATE job_runs
+	SET status = $1
+	WHERE id = $2
 	`
-	err := s.db.QueryRow(query, status, id).Err()
+	_, err := s.pool.Exec(ctx, query, status, id)
 	if err != nil {
 		return err
 	}

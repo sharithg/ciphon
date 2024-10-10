@@ -42,21 +42,17 @@ func main() {
 		},
 	}
 
-	dbClient, err := db.New(
-		cfg.Db.Addr,
-		cfg.Db.MaxOpenConns,
-		cfg.Db.MaxIdleConns,
-		cfg.Db.MaxIdleTime,
-	)
+	pool, err := db.New(cfg.Db.Addr)
+
 	redisClient := redis.NewClient(&redis.Options{
 		Addr: "localhost:6379",
 	})
 
 	if err != nil {
-		log.Fatal("error configuring db", err)
+		log.Fatal("error configuring db: ", err)
 	}
 
-	defer dbClient.Close()
+	defer pool.Close()
 
 	if err = db.Migrate(cfg.Db.Addr); err != nil {
 		slog.Warn("running migrations", "msg", err)
@@ -74,7 +70,7 @@ func main() {
 		log.Fatal("error configuring github client", err)
 	}
 
-	store := storage.NewStorage(dbClient)
+	store := storage.NewStorage(pool)
 	minioStorage := minio.NewStorage(minioClient)
 
 	if err = minioStorage.SetupBuckets(); err != nil {

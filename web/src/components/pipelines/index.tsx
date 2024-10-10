@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -38,10 +38,6 @@ import {
 } from "@/hooks/react-query/use-workflows";
 import { Link } from "@tanstack/react-router";
 import { cn } from "../../lib/utils";
-import useWorkflowEvents from "../../hooks/react-query/use-sse";
-import { useAtom } from "jotai";
-import { selectedWorkflowAtom } from "../atoms/workflows";
-import { API_URL } from "../../hooks/react-query/constants";
 
 const StatusBadge = ({ status }: { status: string }) => {
   const statusConfig = {
@@ -92,13 +88,12 @@ const Pipelines = () => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const { data, refetch } = useGetWorkflows();
   const mutation = useRunWorkflow();
-  const [, setSelectedWorkflow] = useAtom(selectedWorkflowAtom);
 
-  useWorkflowEvents(`${API_URL}/sse/workflows/run-events`, (event) => {
-    if (event.type === "workflow") {
-      refetch();
-    }
-  });
+  // useWorkflowEvents(`${API_URL}/sse/workflows/run-events`, (event) => {
+  //   if (event.type === "workflow") {
+  //     refetch();
+  //   }
+  // });
 
   return (
     <div className="container mx-auto py-10">
@@ -180,12 +175,6 @@ const Pipelines = () => {
                   className={cn(
                     run.status ? "text-blue-500 hover:underline" : ""
                   )}
-                  onClick={() => {
-                    setSelectedWorkflow({
-                      id: run.workflowId,
-                      name: run.workflowName,
-                    });
-                  }}
                 >
                   {run.workflowName}
                 </Link>

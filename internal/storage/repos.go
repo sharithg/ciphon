@@ -1,8 +1,10 @@
 package storage
 
 import (
-	"database/sql"
+	"context"
 	"time"
+
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 type CreateRepo struct {
@@ -25,10 +27,10 @@ type ListRepo struct {
 }
 
 type RepoStore struct {
-	db *sql.DB
+	pool *pgxpool.Pool
 }
 
-func (s *RepoStore) Create(repo CreateRepo) (string, error) {
+func (s *RepoStore) Create(ctx context.Context, repo CreateRepo) (string, error) {
 	var id string
 
 	query := `
@@ -37,7 +39,7 @@ func (s *RepoStore) Create(repo CreateRepo) (string, error) {
 	RETURNING id
 	`
 
-	err := s.db.QueryRow(query, repo.RepoID, repo.Name, repo.Owner, repo.Description, repo.URL, repo.RepoCreatedAt, repo.RawData).Scan(&id)
+	err := s.pool.QueryRow(ctx, query, repo.RepoID, repo.Name, repo.Owner, repo.Description, repo.URL, repo.RepoCreatedAt, repo.RawData).Scan(&id)
 
 	if err != nil {
 		return "", err
@@ -46,7 +48,7 @@ func (s *RepoStore) Create(repo CreateRepo) (string, error) {
 	return id, nil
 }
 
-func (s *RepoStore) All() ([]ListRepo, error) {
+func (s *RepoStore) All(ctx context.Context) ([]ListRepo, error) {
 	var repos []ListRepo
 
 	query := `
@@ -54,7 +56,7 @@ func (s *RepoStore) All() ([]ListRepo, error) {
 	FROM github_repos
 	`
 
-	rows, err := s.db.Query(query)
+	rows, err := s.pool.Query(ctx, query)
 	if err != nil {
 		return nil, err
 	}
