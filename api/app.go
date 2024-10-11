@@ -86,8 +86,8 @@ func (app *Application) Mount() http.Handler {
 		AllowedOrigins:   []string{env.GetString("CORS_ALLOWED_ORIGIN", false, "http://localhost:5173")},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: false,
+		ExposedHeaders:   []string{"Link", "Set-Cookie"},
+		AllowCredentials: true,
 		MaxAge:           300,
 	}))
 
@@ -96,36 +96,43 @@ func (app *Application) Mount() http.Handler {
 	// processing should be stopped.
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	authRoutes, avaRoutes := app.Auth.Service.Handlers()
+	// authRoutes, avaRoutes := app.Auth.Service.Handlers()
 
-	r.Mount("/auth", authRoutes)
-	r.Mount("/avatar", avaRoutes)
+	// r.Mount("/auth", authRoutes)
+	// r.Mount("/avatar", avaRoutes)
 
 	r.Handle(githubapp.DefaultWebhookRoute, webhookHandler)
 
 	r.Route("/v1", func(r chi.Router) {
-		r.Route("/nodes", func(r chi.Router) {
-			r.Get("/", app.getNodesHandler)
-			r.Post("/", app.createNodeHandler)
-			r.Post("/{nodeId}", app.installToolsForNode)
+		r.Route("/auth", func(r chi.Router) {
+			r.Get("/login/github", app.githubLoginHandler)
+			r.Get("/login/github/callback", app.githubCallbackHandler)
 		})
-		r.Route("/repos", func(r chi.Router) {
-			r.Get("/", app.getReposHandler)
-			r.Post("/connect", app.connectRepoHandler)
-			r.Get("/new", app.getNewReposHandler)
-		})
+		r.Group(func(r chi.Router) {
+			r.Use(app.JWTMiddleware)
+			r.Route("/nodes", func(r chi.Router) {
+				r.Get("/", app.getNodesHandler)
+				r.Post("/", app.createNodeHandler)
+				r.Post("/{nodeId}", app.installToolsForNode)
+			})
+			r.Route("/repos", func(r chi.Router) {
+				r.Get("/", app.getReposHandler)
+				r.Post("/connect", app.connectRepoHandler)
+				r.Get("/new", app.getNewReposHandler)
+			})
 
-		// r.HandleFunc("/sse/steps/run-events/{stepId}", app.stepEventsHandler)
-		// r.HandleFunc("/sse/workflows/run-events", app.eventsHandler)
+			// r.HandleFunc("/sse/steps/run-events/{stepId}", app.stepEventsHandler)
+			// r.HandleFunc("/sse/workflows/run-events", app.eventsHandler)
 
-		r.Route("/workflows", func(r chi.Router) {
-			r.Get("/", app.getWorkflows)
-			r.Post("/trigger/{workflowId}", app.triggerWorkflow)
-			r.Route("/{workflowId}", func(r chi.Router) {
-				r.Get("/jobs", app.getJobs)
-				r.Route("/jobs/{jobId}", func(r chi.Router) {
-					r.Get("/steps", app.getSteps)
-					r.Get("/steps/{stepId}/output", app.getStepOutput)
+			r.Route("/workflows", func(r chi.Router) {
+				r.Get("/", app.getWorkflows)
+				r.Post("/trigger/{workflowId}", app.triggerWorkflow)
+				r.Route("/{workflowId}", func(r chi.Router) {
+					r.Get("/jobs", app.getJobs)
+					r.Route("/jobs/{jobId}", func(r chi.Router) {
+						r.Get("/steps", app.getSteps)
+						r.Get("/steps/{stepId}/output", app.getStepOutput)
+					})
 				})
 			})
 		})

@@ -78,7 +78,7 @@ func main() {
 		log.Fatal("error setting up minio buckets", err)
 	}
 
-	auth := auth.New(cfg.Github.AppConfig.OAuth.ClientID, cfg.Github.AppConfig.OAuth.ClientSecret, minioStorage, cfg.Addr)
+	auth := auth.New(env.GetString("JWT_SECRET_KEY", true, ""))
 
 	app := &api.Application{
 		Config:       cfg,

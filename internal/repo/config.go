@@ -6,12 +6,14 @@ import (
 	"strconv"
 
 	"github.com/palantir/go-githubapp/githubapp"
+	"github.com/sharithg/siphon/internal/env"
 )
 
 type GithubConfig struct {
 	AppConfig           githubapp.Config
 	InstallationId      int64
 	PullRequestPreamble string
+	GithubCallbackUrl   string
 }
 
 type GithubOAuth struct {
@@ -68,5 +70,6 @@ func ReadGithubConfig() (*GithubConfig, error) {
 		},
 		InstallationId:      installationId,
 		PullRequestPreamble: pullRequestPreamble,
+		GithubCallbackUrl:   env.GetString("GITHUB_CALLBACK_URL", true, ""),
 	}, nil
 }

@@ -40,6 +40,10 @@ type Storage struct {
 		CreateCommandOutput(ctx context.Context, cmd CommandOutput) (string, error)
 		GetByStepID(ctx context.Context, stepID string) ([]CommandOutput, error)
 	}
+	UsersStore interface {
+		Create(ctx context.Context, user User, githubInfo GitHubUserInfo) (*User, error)
+		GetByExternalId(ctx context.Context, id string) (*User, error)
+	}
 }
 
 func NewStorage(pool *pgxpool.Pool) *Storage {
@@ -50,5 +54,6 @@ func NewStorage(pool *pgxpool.Pool) *Storage {
 		WorkflowRunsStore: &WorkflowRunStore{pool},
 		JobRunsStore:      &JobRunStore{pool},
 		StepRunsStore:     &StepRunStore{pool},
+		UsersStore:        &UserStore{pool},
 	}
 }

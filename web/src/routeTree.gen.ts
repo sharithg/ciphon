@@ -13,8 +13,9 @@ import { createFileRoute } from '@tanstack/react-router'
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
-import { Route as LoginImport } from './routes/login'
+import { Route as LoginIndexImport } from './routes/login/index'
 import { Route as DashboardLayoutImport } from './routes/dashboard/_layout'
+import { Route as LoginGithubCallbackImport } from './routes/login/github/callback'
 import { Route as DashboardLayoutSettingsImport } from './routes/dashboard/_layout.settings'
 import { Route as DashboardLayoutProjectsImport } from './routes/dashboard/_layout.projects'
 import { Route as DashboardLayoutPipelinesIndexImport } from './routes/dashboard/_layout/pipelines/index'
@@ -32,14 +33,19 @@ const DashboardRoute = DashboardImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-const LoginRoute = LoginImport.update({
-  path: '/login',
+const LoginIndexRoute = LoginIndexImport.update({
+  path: '/login/',
   getParentRoute: () => rootRoute,
 } as any)
 
 const DashboardLayoutRoute = DashboardLayoutImport.update({
   id: '/_layout',
   getParentRoute: () => DashboardRoute,
+} as any)
+
+const LoginGithubCallbackRoute = LoginGithubCallbackImport.update({
+  path: '/login/github/callback',
+  getParentRoute: () => rootRoute,
 } as any)
 
 const DashboardLayoutSettingsRoute = DashboardLayoutSettingsImport.update({
@@ -76,13 +82,6 @@ const DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdLayoutJobsJobIdRoute =
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginImport
-      parentRoute: typeof rootRoute
-    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -97,6 +96,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardLayoutImport
       parentRoute: typeof DashboardRoute
     }
+    '/login/': {
+      id: '/login/'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginIndexImport
+      parentRoute: typeof rootRoute
+    }
     '/dashboard/_layout/projects': {
       id: '/dashboard/_layout/projects'
       path: '/projects'
@@ -110,6 +116,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/dashboard/settings'
       preLoaderRoute: typeof DashboardLayoutSettingsImport
       parentRoute: typeof DashboardLayoutImport
+    }
+    '/login/github/callback': {
+      id: '/login/github/callback'
+      path: '/login/github/callback'
+      fullPath: '/login/github/callback'
+      preLoaderRoute: typeof LoginGithubCallbackImport
+      parentRoute: typeof rootRoute
     }
     '/dashboard/_layout/pipelines/': {
       id: '/dashboard/_layout/pipelines/'
@@ -172,20 +185,22 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 )
 
 export interface FileRoutesByFullPath {
-  '/login': typeof LoginRoute
   '/dashboard': typeof DashboardLayoutRouteWithChildren
+  '/login': typeof LoginIndexRoute
   '/dashboard/projects': typeof DashboardLayoutProjectsRoute
   '/dashboard/settings': typeof DashboardLayoutSettingsRoute
+  '/login/github/callback': typeof LoginGithubCallbackRoute
   '/dashboard/pipelines': typeof DashboardLayoutPipelinesIndexRoute
   '/dashboard/pipelines/workflows/$workflowId': typeof DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdIndexRoute
   '/dashboard/pipelines/workflows/$workflowId/jobs/$jobId': typeof DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdLayoutJobsJobIdRoute
 }
 
 export interface FileRoutesByTo {
-  '/login': typeof LoginRoute
   '/dashboard': typeof DashboardLayoutRouteWithChildren
+  '/login': typeof LoginIndexRoute
   '/dashboard/projects': typeof DashboardLayoutProjectsRoute
   '/dashboard/settings': typeof DashboardLayoutSettingsRoute
+  '/login/github/callback': typeof LoginGithubCallbackRoute
   '/dashboard/pipelines': typeof DashboardLayoutPipelinesIndexRoute
   '/dashboard/pipelines/workflows/$workflowId': typeof DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdIndexRoute
   '/dashboard/pipelines/workflows/$workflowId/jobs/$jobId': typeof DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdLayoutJobsJobIdRoute
@@ -193,11 +208,12 @@ export interface FileRoutesByTo {
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
-  '/login': typeof LoginRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/dashboard/_layout': typeof DashboardLayoutRouteWithChildren
+  '/login/': typeof LoginIndexRoute
   '/dashboard/_layout/projects': typeof DashboardLayoutProjectsRoute
   '/dashboard/_layout/settings': typeof DashboardLayoutSettingsRoute
+  '/login/github/callback': typeof LoginGithubCallbackRoute
   '/dashboard/_layout/pipelines/': typeof DashboardLayoutPipelinesIndexRoute
   '/dashboard/_layout/pipelines/_layout/workflows/$workflowId/': typeof DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdIndexRoute
   '/dashboard/_layout/pipelines/_layout/workflows/$workflowId/_layout/jobs/$jobId': typeof DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdLayoutJobsJobIdRoute
@@ -206,29 +222,32 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/login'
     | '/dashboard'
+    | '/login'
     | '/dashboard/projects'
     | '/dashboard/settings'
+    | '/login/github/callback'
     | '/dashboard/pipelines'
     | '/dashboard/pipelines/workflows/$workflowId'
     | '/dashboard/pipelines/workflows/$workflowId/jobs/$jobId'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/login'
     | '/dashboard'
+    | '/login'
     | '/dashboard/projects'
     | '/dashboard/settings'
+    | '/login/github/callback'
     | '/dashboard/pipelines'
     | '/dashboard/pipelines/workflows/$workflowId'
     | '/dashboard/pipelines/workflows/$workflowId/jobs/$jobId'
   id:
     | '__root__'
-    | '/login'
     | '/dashboard'
     | '/dashboard/_layout'
+    | '/login/'
     | '/dashboard/_layout/projects'
     | '/dashboard/_layout/settings'
+    | '/login/github/callback'
     | '/dashboard/_layout/pipelines/'
     | '/dashboard/_layout/pipelines/_layout/workflows/$workflowId/'
     | '/dashboard/_layout/pipelines/_layout/workflows/$workflowId/_layout/jobs/$jobId'
@@ -236,13 +255,15 @@ export interface FileRouteTypes {
 }
 
 export interface RootRouteChildren {
-  LoginRoute: typeof LoginRoute
   DashboardRoute: typeof DashboardRouteWithChildren
+  LoginIndexRoute: typeof LoginIndexRoute
+  LoginGithubCallbackRoute: typeof LoginGithubCallbackRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  LoginRoute: LoginRoute,
   DashboardRoute: DashboardRouteWithChildren,
+  LoginIndexRoute: LoginIndexRoute,
+  LoginGithubCallbackRoute: LoginGithubCallbackRoute,
 }
 
 export const routeTree = rootRoute
@@ -257,12 +278,10 @@ export const routeTree = rootRoute
     "__root__": {
       "filePath": "__root.tsx",
       "children": [
-        "/login",
-        "/dashboard"
+        "/dashboard",
+        "/login/",
+        "/login/github/callback"
       ]
-    },
-    "/login": {
-      "filePath": "login.tsx"
     },
     "/dashboard": {
       "filePath": "dashboard",
@@ -281,6 +300,9 @@ export const routeTree = rootRoute
         "/dashboard/_layout/pipelines/_layout/workflows/$workflowId/_layout/jobs/$jobId"
       ]
     },
+    "/login/": {
+      "filePath": "login/index.tsx"
+    },
     "/dashboard/_layout/projects": {
       "filePath": "dashboard/_layout.projects.tsx",
       "parent": "/dashboard/_layout"
@@ -288,6 +310,9 @@ export const routeTree = rootRoute
     "/dashboard/_layout/settings": {
       "filePath": "dashboard/_layout.settings.tsx",
       "parent": "/dashboard/_layout"
+    },
+    "/login/github/callback": {
+      "filePath": "login/github/callback.tsx"
     },
     "/dashboard/_layout/pipelines/": {
       "filePath": "dashboard/_layout/pipelines/index.tsx",

@@ -2,54 +2,56 @@ package auth
 
 import (
 	"fmt"
-	"log/slog"
-	"os"
-	"strings"
 	"time"
 
-	"github.com/go-pkgz/auth"
-	"github.com/go-pkgz/auth/token"
-	"github.com/sharithg/siphon/internal/storage/minio"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type Auth struct {
-	Service *auth.Service
+	SecretKey string
 }
 
-type SlogLogger struct {
-	slogger *slog.Logger
+type Claims struct {
+	UserId string `json:"userId"`
+	jwt.RegisteredClaims
 }
 
-func (l SlogLogger) Info(msg string, args ...any) {
-	l.slogger.Info(msg, args...)
+func New(s string) *Auth {
+	return &Auth{SecretKey: s}
 }
 
-func (l SlogLogger) Logf(format string, args ...any) {
-	l.slogger.Info(fmt.Sprintf(format, args...))
-}
+func (a *Auth) CreateToken(userId string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256,
+		jwt.MapClaims{
+			"userId": userId,
+			"exp":    time.Now().Add(time.Hour * 24).Unix(),
+		})
 
-func New(clientId, clientSecret string, store *minio.Storage, addr string) *Auth {
-	slogger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-
-	options := auth.Opts{
-		SecretReader: token.SecretFunc(func(id string) (string, error) {
-			return "secret", nil
-		}),
-		TokenDuration:  time.Minute * 5, // token expires in 5 minutes
-		CookieDuration: time.Hour * 24,  // cookie expires in 1 day and will enforce re-login
-		Issuer:         "ciphon",
-		URL:            fmt.Sprintf("http://127.0.0.1%s", addr),
-		AvatarStore:    NewFileStore("/tmp/avatars", store),
-		Validator: token.ValidatorFunc(func(_ string, claims token.Claims) bool {
-			return claims.User != nil && strings.HasPrefix(claims.User.Name, "dev_")
-		}),
-		Logger: SlogLogger{slogger: slogger},
+	tokenString, err := token.SignedString(a.SecretKey)
+	if err != nil {
+		return "", err
 	}
 
-	service := auth.NewService(options)
-	service.AddProvider("github", clientId, clientSecret)
+	return tokenString, nil
+}
 
-	return &Auth{
-		Service: service,
+func (a *Auth) VerifyToken(tokenStr string) (*Claims, error) {
+	claims := &Claims{}
+
+	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return a.SecretKey, nil
+	})
+
+	if err != nil {
+		return nil, err
 	}
+
+	if !token.Valid {
+		return nil, fmt.Errorf("invalid token")
+	}
+
+	return claims, nil
 }

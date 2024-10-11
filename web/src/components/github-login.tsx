@@ -7,11 +7,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Github } from "lucide-react";
+import { API_URL } from "../hooks/react-query/constants";
 
 export default function GithubLogin() {
   const handleGitHubLogin = () => {
-    // TODO: Implement GitHub OAuth login
-    console.log("GitHub login clicked");
+    window.location.href = `${API_URL}/auth/login/github`;
   };
 
   return (
