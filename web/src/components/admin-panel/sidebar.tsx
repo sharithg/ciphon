@@ -31,7 +31,7 @@ export function Sidebar() {
           variant="link"
           asChild
         >
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/dashboard" className="flex items-center gap-2">
             <SiphonLogo scaleDown={0.6} />
             <h1
               className={cn(

@@ -15,6 +15,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-redis/redis/v8"
 	"github.com/palantir/go-githubapp/githubapp"
+	"github.com/sharithg/siphon/internal/auth"
 	"github.com/sharithg/siphon/internal/env"
 	"github.com/sharithg/siphon/internal/repo"
 	"github.com/sharithg/siphon/internal/storage"
@@ -52,6 +53,7 @@ type Application struct {
 	Github       *repo.Github
 	Wh           *GhWebhookHandler
 	Cache        *redis.Client
+	Auth         *auth.Auth
 }
 
 func (app *Application) Mount() http.Handler {
@@ -93,6 +95,11 @@ func (app *Application) Mount() http.Handler {
 	// through ctx.Done() that the request has timed out and further
 	// processing should be stopped.
 	r.Use(middleware.Timeout(60 * time.Second))
+
+	authRoutes, avaRoutes := app.Auth.Service.Handlers()
+
+	r.Mount("/auth", authRoutes)
+	r.Mount("/avatar", avaRoutes)
 
 	r.Handle(githubapp.DefaultWebhookRoute, webhookHandler)
 

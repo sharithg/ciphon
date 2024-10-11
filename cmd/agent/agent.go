@@ -7,11 +7,12 @@ import (
 	"path"
 
 	"github.com/joho/godotenv"
+	"github.com/sharithg/siphon/agent"
 	"github.com/sharithg/siphon/internal/config"
 	"github.com/sharithg/siphon/internal/docker"
 	"github.com/sharithg/siphon/internal/env"
+	"github.com/sharithg/siphon/internal/runner"
 	storage "github.com/sharithg/siphon/internal/storage/kv"
-	"github.com/sharithg/siphon/ws"
 )
 
 func main() {
@@ -21,7 +22,7 @@ func main() {
 		slog.Warn("error loading .env file", "err", err)
 	}
 
-	cfg := ws.Config{
+	cfg := agent.Config{
 		Addr: env.GetString("AGENT_ADDR", false, ":8888"),
 		Env:  env.GetString("GOENV", false, "local"),
 	}
@@ -48,11 +49,14 @@ func main() {
 		log.Fatalf("error loading agent config: %s", err)
 	}
 
-	app := &ws.Application{
+	run := runner.New(store, dock)
+
+	app := &agent.Application{
 		Config:      cfg,
 		Store:       store,
 		Docker:      dock,
 		AgentConfig: agentConfig,
+		Runner:      run,
 	}
 
 	log.Fatal(app.Run())

@@ -13,7 +13,9 @@ import CustomNode from "@/components/custom-node";
 import { useGetJobs } from "@/hooks/react-query/use-workflows";
 import { useEffect, useState } from "react";
 
-export const Route = createFileRoute("/pipelines/workflows/$workflowId/")({
+export const Route = createFileRoute(
+  "/dashboard/_layout/pipelines/_layout/workflows/$workflowId/"
+)({
   component: () => (
     <>
       <Pipeline />
@@ -77,7 +79,7 @@ function Pipeline() {
           zoomOnDoubleClick={false}
           onNodeClick={(_, node) => {
             nav({
-              to: `/pipelines/workflows/${params.workflowId}/jobs/${node.id}`,
+              to: `/dashboard/pipelines/workflows/${params.workflowId}/jobs/${node.id}`,
             });
           }}
         >

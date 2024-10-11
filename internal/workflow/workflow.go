@@ -13,8 +13,8 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/websocket"
 	"github.com/sharithg/siphon/internal/remote"
+	"github.com/sharithg/siphon/internal/runner"
 	"github.com/sharithg/siphon/internal/storage"
-	"github.com/sharithg/siphon/ws"
 )
 
 type WorkflowManager struct {
@@ -148,10 +148,7 @@ func (wm *WorkflowManager) executeJob(ctx context.Context, steps []storage.Workf
 	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 
-	i := 0
-
 	for {
-		i = i + 1
 		select {
 		case <-timeoutCtx.Done():
 			slog.Error("timeout exceeded waiting for WebSocket messages")
@@ -171,7 +168,7 @@ func (wm *WorkflowManager) executeJob(ctx context.Context, steps []storage.Workf
 				return err
 			}
 
-			var output ws.CommandOutput
+			var output runner.CommandOutput
 			if err = json.Unmarshal(msg, &output); err != nil {
 				slog.Error("error unmarshalling output", "error", err)
 				return err
@@ -213,8 +210,8 @@ func (wm *WorkflowManager) executeJob(ctx context.Context, steps []storage.Workf
 
 }
 
-func (wm *WorkflowManager) getSteps(steps []storage.WorkflowRunSteps, node storage.Node) (*ws.Commands, error) {
-	var commands []ws.Command
+func (wm *WorkflowManager) getSteps(steps []storage.WorkflowRunSteps, node storage.Node) (*runner.Commands, error) {
+	var commands []runner.Command
 	workDir := "/"
 
 	for _, step := range steps {
@@ -230,7 +227,7 @@ func (wm *WorkflowManager) getSteps(steps []storage.WorkflowRunSteps, node stora
 				return nil, err
 			}
 
-			commands = append(commands, ws.Command{
+			commands = append(commands, runner.Command{
 				Id:    step.StepID,
 				Cmd:   fmt.Sprintf("git clone %s && cd %s && git fetch origin && git checkout %s && git log -1", cloneUrl, step.RepoName, step.Branch),
 				Order: step.StepOrder,
@@ -239,21 +236,21 @@ func (wm *WorkflowManager) getSteps(steps []storage.WorkflowRunSteps, node stora
 			workDir = fmt.Sprintf("/%s", step.RepoName)
 
 		case "restore_cache":
-			commands = append(commands, ws.Command{
+			commands = append(commands, runner.Command{
 				Id:      step.StepID,
 				Cmd:     "echo 'restore_cache'",
 				Order:   step.StepOrder,
 				WorkDir: workDir,
 			})
 		case "save_cache":
-			commands = append(commands, ws.Command{
+			commands = append(commands, runner.Command{
 				Id:      step.StepID,
 				Cmd:     "echo 'restore_cache'",
 				Order:   step.StepOrder,
 				WorkDir: workDir,
 			})
 		default:
-			commands = append(commands, ws.Command{
+			commands = append(commands, runner.Command{
 				Id:      step.StepID,
 				Cmd:     step.Command,
 				Order:   step.StepOrder,
@@ -262,8 +259,8 @@ func (wm *WorkflowManager) getSteps(steps []storage.WorkflowRunSteps, node stora
 		}
 	}
 
-	payload := &ws.Commands{
-		BaseEvent: ws.BaseEvent{
+	payload := &runner.Commands{
+		BaseEvent: runner.BaseEvent{
 			Type: "run_command",
 		},
 		Image:    steps[0].Docker,

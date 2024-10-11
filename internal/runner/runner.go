@@ -1,14 +1,14 @@
-package ws
+package runner
 
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
-	"net/http"
 	"sort"
 
 	"github.com/gorilla/websocket"
+	"github.com/sharithg/siphon/internal/docker"
+	storage "github.com/sharithg/siphon/internal/storage/kv"
 	"github.com/sharithg/siphon/internal/utils"
 )
 
@@ -36,46 +36,25 @@ type CommandOutput struct {
 	Id         string `json:"id"`
 }
 
-func (app *Application) serveWs(w http.ResponseWriter, r *http.Request) {
-
-	ws, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Printf("Failed to upgrade to WebSocket: %v", err)
-		return
-	}
-	defer ws.Close()
-
-	log.Printf("Client connected from %s", ws.RemoteAddr())
-
-	for {
-		var event Commands
-		err := ws.ReadJSON(&event)
-		if err != nil {
-			log.Printf("Receive failed: %s", err.Error())
-			break
-		}
-		switch event.Type {
-		case "run_command":
-			go func() {
-				if err := app.handleWebsocketEvent1(ws, event); err != nil {
-					log.Println("Error writing to stdin:", err)
-				}
-			}()
-		default:
-			log.Printf("Unknown event type: %s", event.Type)
-		}
-	}
-
+type Runner struct {
+	Store  *storage.KvStorage
+	Docker *docker.Docker
 }
 
-func (a *Application) handleWebsocketEvent1(conn *websocket.Conn, e Commands) error {
+func New(store *storage.KvStorage, docker *docker.Docker) *Runner {
+	return &Runner{
+		Store:  store,
+		Docker: docker,
+	}
+}
+
+func (r *Runner) RunCommands(conn *websocket.Conn, e Commands) error {
 	fmt.Println("Starting Docker operation")
 
 	ctx := context.Background()
-
 	runId := utils.RandStringBytes(10)
 
-	err := a.Store.Containers.Set(runId, "running")
+	err := r.Store.Containers.Set(runId, "running")
 
 	if err != nil {
 		slog.Error("error saving container state", "err", err)
@@ -89,42 +68,6 @@ func (a *Application) handleWebsocketEvent1(conn *websocket.Conn, e Commands) er
 	stdoutSetupFunc := stdoutHandler(outputChan, "setup", "")
 	stderrSetupFunc := stderrHandler(outputChan, "setup", "")
 
-	// terdown
-	stdoutTeardownFunc := stdoutHandler(outputChan, "teardown", "")
-	stderrTeardownFunc := stderrHandler(outputChan, "teardown", "")
-
-	terdownFunc := func() {
-		running := CommandOutput{
-			CmdType: "running",
-		}
-		if err := sendOutput(conn, running); err != nil {
-			slog.Error("error sending output over websocket", "err", err)
-			return
-		}
-
-		if err := a.Docker.StopAndRemoveContainer(ctx, runId, stdoutTeardownFunc, stderrTeardownFunc); err != nil {
-			slog.Error("error stopping and deleting containers", "err", err)
-			sendError(conn, err)
-			return
-		}
-
-		doneCmd := CommandOutput{
-			CmdType: "doneCmd",
-		}
-		if err := sendOutput(conn, doneCmd); err != nil {
-			slog.Error("error sending output over websocket", "err", err)
-			return
-		}
-
-		output := CommandOutput{
-			CmdType: "done",
-		}
-
-		if err := sendOutput(conn, output); err != nil {
-			slog.Error("error sending output over websocket", "err", err)
-		}
-	}
-
 	go func() {
 		defer close(outputChan)
 
@@ -137,7 +80,7 @@ func (a *Application) handleWebsocketEvent1(conn *websocket.Conn, e Commands) er
 			return
 		}
 
-		if err := a.Docker.PullImageAndStreamOutput(ctx, e.Image, stdoutSetupFunc, stderrSetupFunc); err != nil {
+		if err := r.Docker.PullImageAndStreamOutput(ctx, e.Image, stdoutSetupFunc, stderrSetupFunc); err != nil {
 			slog.Error("error pulling docker image", "err", err)
 			sendError(conn, err)
 			return
@@ -148,7 +91,7 @@ func (a *Application) handleWebsocketEvent1(conn *websocket.Conn, e Commands) er
 			return
 		}
 
-		if err := a.Docker.RunBackgroundContainer(runId, e.Image, stdoutSetupFunc, stderrSetupFunc); err != nil {
+		if err := r.Docker.RunBackgroundContainer(runId, e.Image, stdoutSetupFunc, stderrSetupFunc); err != nil {
 			slog.Error("error running background container", "err", err)
 			sendError(conn, err)
 			return
@@ -162,7 +105,7 @@ func (a *Application) handleWebsocketEvent1(conn *websocket.Conn, e Commands) er
 			return
 		}
 
-		defer terdownFunc()
+		defer r.teardown(ctx, runId, conn, outputChan)
 
 		commands := e.Commands
 
@@ -191,7 +134,7 @@ func (a *Application) handleWebsocketEvent1(conn *websocket.Conn, e Commands) er
 				return
 			}
 
-			if err := a.Docker.ExecAndStreamLogs(runId, workDir, cmd.Cmd, stdoutCmdFunc, stderrCmdFunc); err != nil {
+			if err := r.Docker.ExecAndStreamLogs(runId, workDir, cmd.Cmd, stdoutCmdFunc, stderrCmdFunc); err != nil {
 				slog.Error("error running command", "err", err)
 				sendError(conn, err)
 				return
@@ -215,7 +158,7 @@ func (a *Application) handleWebsocketEvent1(conn *websocket.Conn, e Commands) er
 		}
 	}
 
-	err = a.Store.Containers.Set(runId, "complete")
+	err = r.Store.Containers.Set(runId, "complete")
 
 	if err != nil {
 		slog.Error("error saving container state", "err", err)
@@ -224,6 +167,43 @@ func (a *Application) handleWebsocketEvent1(conn *websocket.Conn, e Commands) er
 	}
 
 	return nil
+}
+
+func (r *Runner) teardown(ctx context.Context, runId string, conn *websocket.Conn, outputChan chan CommandOutput) {
+
+	// terdown
+	stdoutTeardownFunc := stdoutHandler(outputChan, "teardown", "")
+	stderrTeardownFunc := stderrHandler(outputChan, "teardown", "")
+
+	running := CommandOutput{
+		CmdType: "running",
+	}
+	if err := sendOutput(conn, running); err != nil {
+		slog.Error("error sending output over websocket", "err", err)
+		return
+	}
+
+	if err := r.Docker.StopAndRemoveContainer(ctx, runId, stdoutTeardownFunc, stderrTeardownFunc); err != nil {
+		slog.Error("error stopping and deleting containers", "err", err)
+		sendError(conn, err)
+		return
+	}
+
+	doneCmd := CommandOutput{
+		CmdType: "doneCmd",
+	}
+	if err := sendOutput(conn, doneCmd); err != nil {
+		slog.Error("error sending output over websocket", "err", err)
+		return
+	}
+
+	output := CommandOutput{
+		CmdType: "done",
+	}
+
+	if err := sendOutput(conn, output); err != nil {
+		slog.Error("error sending output over websocket", "err", err)
+	}
 }
 
 func stdoutHandler(outputChan chan CommandOutput, cmdType string, cmdId string) func(string) {

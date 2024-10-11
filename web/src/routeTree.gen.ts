@@ -13,183 +13,236 @@ import { createFileRoute } from '@tanstack/react-router'
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
-import { Route as PipelinesWorkflowsWorkflowIdIndexImport } from './routes/pipelines/workflows/$workflowId/index'
+import { Route as LoginImport } from './routes/login'
+import { Route as DashboardLayoutImport } from './routes/dashboard/_layout'
+import { Route as DashboardLayoutSettingsImport } from './routes/dashboard/_layout.settings'
+import { Route as DashboardLayoutProjectsImport } from './routes/dashboard/_layout.projects'
+import { Route as DashboardLayoutPipelinesIndexImport } from './routes/dashboard/_layout/pipelines/index'
+import { Route as DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdIndexImport } from './routes/dashboard/_layout/pipelines/_layout/workflows/$workflowId/index'
+import { Route as DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdLayoutJobsJobIdImport } from './routes/dashboard/_layout/pipelines/_layout/workflows/$workflowId/_layout/jobs/$jobId'
 
 // Create Virtual Routes
 
-const SettingsLazyImport = createFileRoute('/settings')()
-const ProjectsLazyImport = createFileRoute('/projects')()
-const IndexLazyImport = createFileRoute('/')()
-const PipelinesIndexLazyImport = createFileRoute('/pipelines/')()
-const PipelinesWorkflowsWorkflowIdJobsJobIdLazyImport = createFileRoute(
-  '/pipelines/workflows/$workflowId/jobs/$jobId',
-)()
+const DashboardImport = createFileRoute('/dashboard')()
 
 // Create/Update Routes
 
-const SettingsLazyRoute = SettingsLazyImport.update({
+const DashboardRoute = DashboardImport.update({
+  path: '/dashboard',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const LoginRoute = LoginImport.update({
+  path: '/login',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const DashboardLayoutRoute = DashboardLayoutImport.update({
+  id: '/_layout',
+  getParentRoute: () => DashboardRoute,
+} as any)
+
+const DashboardLayoutSettingsRoute = DashboardLayoutSettingsImport.update({
   path: '/settings',
-  getParentRoute: () => rootRoute,
-} as any).lazy(() => import('./routes/settings.lazy').then((d) => d.Route))
+  getParentRoute: () => DashboardLayoutRoute,
+} as any)
 
-const ProjectsLazyRoute = ProjectsLazyImport.update({
+const DashboardLayoutProjectsRoute = DashboardLayoutProjectsImport.update({
   path: '/projects',
-  getParentRoute: () => rootRoute,
-} as any).lazy(() => import('./routes/projects.lazy').then((d) => d.Route))
+  getParentRoute: () => DashboardLayoutRoute,
+} as any)
 
-const IndexLazyRoute = IndexLazyImport.update({
-  path: '/',
-  getParentRoute: () => rootRoute,
-} as any).lazy(() => import('./routes/index.lazy').then((d) => d.Route))
-
-const PipelinesIndexLazyRoute = PipelinesIndexLazyImport.update({
-  path: '/pipelines/',
-  getParentRoute: () => rootRoute,
-} as any).lazy(() =>
-  import('./routes/pipelines/index.lazy').then((d) => d.Route),
-)
-
-const PipelinesWorkflowsWorkflowIdIndexRoute =
-  PipelinesWorkflowsWorkflowIdIndexImport.update({
-    path: '/pipelines/workflows/$workflowId/',
-    getParentRoute: () => rootRoute,
+const DashboardLayoutPipelinesIndexRoute =
+  DashboardLayoutPipelinesIndexImport.update({
+    path: '/pipelines/',
+    getParentRoute: () => DashboardLayoutRoute,
   } as any)
 
-const PipelinesWorkflowsWorkflowIdJobsJobIdLazyRoute =
-  PipelinesWorkflowsWorkflowIdJobsJobIdLazyImport.update({
-    path: '/pipelines/workflows/$workflowId/jobs/$jobId',
-    getParentRoute: () => rootRoute,
-  } as any).lazy(() =>
-    import('./routes/pipelines/workflows/$workflowId/jobs/$jobId.lazy').then(
-      (d) => d.Route,
-    ),
+const DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdIndexRoute =
+  DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdIndexImport.update({
+    path: '/pipelines/workflows/$workflowId/',
+    getParentRoute: () => DashboardLayoutRoute,
+  } as any)
+
+const DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdLayoutJobsJobIdRoute =
+  DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdLayoutJobsJobIdImport.update(
+    {
+      path: '/pipelines/workflows/$workflowId/jobs/$jobId',
+      getParentRoute: () => DashboardLayoutRoute,
+    } as any,
   )
 
 // Populate the FileRoutesByPath interface
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexLazyImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginImport
       parentRoute: typeof rootRoute
     }
-    '/projects': {
-      id: '/projects'
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardImport
+      parentRoute: typeof rootRoute
+    }
+    '/dashboard/_layout': {
+      id: '/dashboard/_layout'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardLayoutImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/_layout/projects': {
+      id: '/dashboard/_layout/projects'
       path: '/projects'
-      fullPath: '/projects'
-      preLoaderRoute: typeof ProjectsLazyImport
-      parentRoute: typeof rootRoute
+      fullPath: '/dashboard/projects'
+      preLoaderRoute: typeof DashboardLayoutProjectsImport
+      parentRoute: typeof DashboardLayoutImport
     }
-    '/settings': {
-      id: '/settings'
+    '/dashboard/_layout/settings': {
+      id: '/dashboard/_layout/settings'
       path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsLazyImport
-      parentRoute: typeof rootRoute
+      fullPath: '/dashboard/settings'
+      preLoaderRoute: typeof DashboardLayoutSettingsImport
+      parentRoute: typeof DashboardLayoutImport
     }
-    '/pipelines/': {
-      id: '/pipelines/'
+    '/dashboard/_layout/pipelines/': {
+      id: '/dashboard/_layout/pipelines/'
       path: '/pipelines'
-      fullPath: '/pipelines'
-      preLoaderRoute: typeof PipelinesIndexLazyImport
-      parentRoute: typeof rootRoute
+      fullPath: '/dashboard/pipelines'
+      preLoaderRoute: typeof DashboardLayoutPipelinesIndexImport
+      parentRoute: typeof DashboardLayoutImport
     }
-    '/pipelines/workflows/$workflowId/': {
-      id: '/pipelines/workflows/$workflowId/'
+    '/dashboard/_layout/pipelines/_layout/workflows/$workflowId/': {
+      id: '/dashboard/_layout/pipelines/_layout/workflows/$workflowId/'
       path: '/pipelines/workflows/$workflowId'
-      fullPath: '/pipelines/workflows/$workflowId'
-      preLoaderRoute: typeof PipelinesWorkflowsWorkflowIdIndexImport
-      parentRoute: typeof rootRoute
+      fullPath: '/dashboard/pipelines/workflows/$workflowId'
+      preLoaderRoute: typeof DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdIndexImport
+      parentRoute: typeof DashboardLayoutImport
     }
-    '/pipelines/workflows/$workflowId/jobs/$jobId': {
-      id: '/pipelines/workflows/$workflowId/jobs/$jobId'
+    '/dashboard/_layout/pipelines/_layout/workflows/$workflowId/_layout/jobs/$jobId': {
+      id: '/dashboard/_layout/pipelines/_layout/workflows/$workflowId/_layout/jobs/$jobId'
       path: '/pipelines/workflows/$workflowId/jobs/$jobId'
-      fullPath: '/pipelines/workflows/$workflowId/jobs/$jobId'
-      preLoaderRoute: typeof PipelinesWorkflowsWorkflowIdJobsJobIdLazyImport
-      parentRoute: typeof rootRoute
+      fullPath: '/dashboard/pipelines/workflows/$workflowId/jobs/$jobId'
+      preLoaderRoute: typeof DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdLayoutJobsJobIdImport
+      parentRoute: typeof DashboardLayoutImport
     }
   }
 }
 
 // Create and export the route tree
 
+interface DashboardLayoutRouteChildren {
+  DashboardLayoutProjectsRoute: typeof DashboardLayoutProjectsRoute
+  DashboardLayoutSettingsRoute: typeof DashboardLayoutSettingsRoute
+  DashboardLayoutPipelinesIndexRoute: typeof DashboardLayoutPipelinesIndexRoute
+  DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdIndexRoute: typeof DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdIndexRoute
+  DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdLayoutJobsJobIdRoute: typeof DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdLayoutJobsJobIdRoute
+}
+
+const DashboardLayoutRouteChildren: DashboardLayoutRouteChildren = {
+  DashboardLayoutProjectsRoute: DashboardLayoutProjectsRoute,
+  DashboardLayoutSettingsRoute: DashboardLayoutSettingsRoute,
+  DashboardLayoutPipelinesIndexRoute: DashboardLayoutPipelinesIndexRoute,
+  DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdIndexRoute:
+    DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdIndexRoute,
+  DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdLayoutJobsJobIdRoute:
+    DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdLayoutJobsJobIdRoute,
+}
+
+const DashboardLayoutRouteWithChildren = DashboardLayoutRoute._addFileChildren(
+  DashboardLayoutRouteChildren,
+)
+
+interface DashboardRouteChildren {
+  DashboardLayoutRoute: typeof DashboardLayoutRouteWithChildren
+}
+
+const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardLayoutRoute: DashboardLayoutRouteWithChildren,
+}
+
+const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
+  DashboardRouteChildren,
+)
+
 export interface FileRoutesByFullPath {
-  '/': typeof IndexLazyRoute
-  '/projects': typeof ProjectsLazyRoute
-  '/settings': typeof SettingsLazyRoute
-  '/pipelines': typeof PipelinesIndexLazyRoute
-  '/pipelines/workflows/$workflowId': typeof PipelinesWorkflowsWorkflowIdIndexRoute
-  '/pipelines/workflows/$workflowId/jobs/$jobId': typeof PipelinesWorkflowsWorkflowIdJobsJobIdLazyRoute
+  '/login': typeof LoginRoute
+  '/dashboard': typeof DashboardLayoutRouteWithChildren
+  '/dashboard/projects': typeof DashboardLayoutProjectsRoute
+  '/dashboard/settings': typeof DashboardLayoutSettingsRoute
+  '/dashboard/pipelines': typeof DashboardLayoutPipelinesIndexRoute
+  '/dashboard/pipelines/workflows/$workflowId': typeof DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdIndexRoute
+  '/dashboard/pipelines/workflows/$workflowId/jobs/$jobId': typeof DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdLayoutJobsJobIdRoute
 }
 
 export interface FileRoutesByTo {
-  '/': typeof IndexLazyRoute
-  '/projects': typeof ProjectsLazyRoute
-  '/settings': typeof SettingsLazyRoute
-  '/pipelines': typeof PipelinesIndexLazyRoute
-  '/pipelines/workflows/$workflowId': typeof PipelinesWorkflowsWorkflowIdIndexRoute
-  '/pipelines/workflows/$workflowId/jobs/$jobId': typeof PipelinesWorkflowsWorkflowIdJobsJobIdLazyRoute
+  '/login': typeof LoginRoute
+  '/dashboard': typeof DashboardLayoutRouteWithChildren
+  '/dashboard/projects': typeof DashboardLayoutProjectsRoute
+  '/dashboard/settings': typeof DashboardLayoutSettingsRoute
+  '/dashboard/pipelines': typeof DashboardLayoutPipelinesIndexRoute
+  '/dashboard/pipelines/workflows/$workflowId': typeof DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdIndexRoute
+  '/dashboard/pipelines/workflows/$workflowId/jobs/$jobId': typeof DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdLayoutJobsJobIdRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
-  '/': typeof IndexLazyRoute
-  '/projects': typeof ProjectsLazyRoute
-  '/settings': typeof SettingsLazyRoute
-  '/pipelines/': typeof PipelinesIndexLazyRoute
-  '/pipelines/workflows/$workflowId/': typeof PipelinesWorkflowsWorkflowIdIndexRoute
-  '/pipelines/workflows/$workflowId/jobs/$jobId': typeof PipelinesWorkflowsWorkflowIdJobsJobIdLazyRoute
+  '/login': typeof LoginRoute
+  '/dashboard': typeof DashboardRouteWithChildren
+  '/dashboard/_layout': typeof DashboardLayoutRouteWithChildren
+  '/dashboard/_layout/projects': typeof DashboardLayoutProjectsRoute
+  '/dashboard/_layout/settings': typeof DashboardLayoutSettingsRoute
+  '/dashboard/_layout/pipelines/': typeof DashboardLayoutPipelinesIndexRoute
+  '/dashboard/_layout/pipelines/_layout/workflows/$workflowId/': typeof DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdIndexRoute
+  '/dashboard/_layout/pipelines/_layout/workflows/$workflowId/_layout/jobs/$jobId': typeof DashboardLayoutPipelinesLayoutWorkflowsWorkflowIdLayoutJobsJobIdRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
-    | '/projects'
-    | '/settings'
-    | '/pipelines'
-    | '/pipelines/workflows/$workflowId'
-    | '/pipelines/workflows/$workflowId/jobs/$jobId'
+    | '/login'
+    | '/dashboard'
+    | '/dashboard/projects'
+    | '/dashboard/settings'
+    | '/dashboard/pipelines'
+    | '/dashboard/pipelines/workflows/$workflowId'
+    | '/dashboard/pipelines/workflows/$workflowId/jobs/$jobId'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
-    | '/projects'
-    | '/settings'
-    | '/pipelines'
-    | '/pipelines/workflows/$workflowId'
-    | '/pipelines/workflows/$workflowId/jobs/$jobId'
+    | '/login'
+    | '/dashboard'
+    | '/dashboard/projects'
+    | '/dashboard/settings'
+    | '/dashboard/pipelines'
+    | '/dashboard/pipelines/workflows/$workflowId'
+    | '/dashboard/pipelines/workflows/$workflowId/jobs/$jobId'
   id:
     | '__root__'
-    | '/'
-    | '/projects'
-    | '/settings'
-    | '/pipelines/'
-    | '/pipelines/workflows/$workflowId/'
-    | '/pipelines/workflows/$workflowId/jobs/$jobId'
+    | '/login'
+    | '/dashboard'
+    | '/dashboard/_layout'
+    | '/dashboard/_layout/projects'
+    | '/dashboard/_layout/settings'
+    | '/dashboard/_layout/pipelines/'
+    | '/dashboard/_layout/pipelines/_layout/workflows/$workflowId/'
+    | '/dashboard/_layout/pipelines/_layout/workflows/$workflowId/_layout/jobs/$jobId'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
-  IndexLazyRoute: typeof IndexLazyRoute
-  ProjectsLazyRoute: typeof ProjectsLazyRoute
-  SettingsLazyRoute: typeof SettingsLazyRoute
-  PipelinesIndexLazyRoute: typeof PipelinesIndexLazyRoute
-  PipelinesWorkflowsWorkflowIdIndexRoute: typeof PipelinesWorkflowsWorkflowIdIndexRoute
-  PipelinesWorkflowsWorkflowIdJobsJobIdLazyRoute: typeof PipelinesWorkflowsWorkflowIdJobsJobIdLazyRoute
+  LoginRoute: typeof LoginRoute
+  DashboardRoute: typeof DashboardRouteWithChildren
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexLazyRoute: IndexLazyRoute,
-  ProjectsLazyRoute: ProjectsLazyRoute,
-  SettingsLazyRoute: SettingsLazyRoute,
-  PipelinesIndexLazyRoute: PipelinesIndexLazyRoute,
-  PipelinesWorkflowsWorkflowIdIndexRoute:
-    PipelinesWorkflowsWorkflowIdIndexRoute,
-  PipelinesWorkflowsWorkflowIdJobsJobIdLazyRoute:
-    PipelinesWorkflowsWorkflowIdJobsJobIdLazyRoute,
+  LoginRoute: LoginRoute,
+  DashboardRoute: DashboardRouteWithChildren,
 }
 
 export const routeTree = rootRoute
@@ -204,31 +257,49 @@ export const routeTree = rootRoute
     "__root__": {
       "filePath": "__root.tsx",
       "children": [
-        "/",
-        "/projects",
-        "/settings",
-        "/pipelines/",
-        "/pipelines/workflows/$workflowId/",
-        "/pipelines/workflows/$workflowId/jobs/$jobId"
+        "/login",
+        "/dashboard"
       ]
     },
-    "/": {
-      "filePath": "index.lazy.tsx"
+    "/login": {
+      "filePath": "login.tsx"
     },
-    "/projects": {
-      "filePath": "projects.lazy.tsx"
+    "/dashboard": {
+      "filePath": "dashboard",
+      "children": [
+        "/dashboard/_layout"
+      ]
     },
-    "/settings": {
-      "filePath": "settings.lazy.tsx"
+    "/dashboard/_layout": {
+      "filePath": "dashboard/_layout.tsx",
+      "parent": "/dashboard",
+      "children": [
+        "/dashboard/_layout/projects",
+        "/dashboard/_layout/settings",
+        "/dashboard/_layout/pipelines/",
+        "/dashboard/_layout/pipelines/_layout/workflows/$workflowId/",
+        "/dashboard/_layout/pipelines/_layout/workflows/$workflowId/_layout/jobs/$jobId"
+      ]
     },
-    "/pipelines/": {
-      "filePath": "pipelines/index.lazy.tsx"
+    "/dashboard/_layout/projects": {
+      "filePath": "dashboard/_layout.projects.tsx",
+      "parent": "/dashboard/_layout"
     },
-    "/pipelines/workflows/$workflowId/": {
-      "filePath": "pipelines/workflows/$workflowId/index.tsx"
+    "/dashboard/_layout/settings": {
+      "filePath": "dashboard/_layout.settings.tsx",
+      "parent": "/dashboard/_layout"
     },
-    "/pipelines/workflows/$workflowId/jobs/$jobId": {
-      "filePath": "pipelines/workflows/$workflowId/jobs/$jobId.lazy.tsx"
+    "/dashboard/_layout/pipelines/": {
+      "filePath": "dashboard/_layout/pipelines/index.tsx",
+      "parent": "/dashboard/_layout"
+    },
+    "/dashboard/_layout/pipelines/_layout/workflows/$workflowId/": {
+      "filePath": "dashboard/_layout/pipelines/_layout/workflows/$workflowId/index.tsx",
+      "parent": "/dashboard/_layout"
+    },
+    "/dashboard/_layout/pipelines/_layout/workflows/$workflowId/_layout/jobs/$jobId": {
+      "filePath": "dashboard/_layout/pipelines/_layout/workflows/$workflowId/_layout/jobs/$jobId.tsx",
+      "parent": "/dashboard/_layout"
     }
   }
 }

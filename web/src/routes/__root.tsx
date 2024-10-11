@@ -1,10 +1,6 @@
 import { createRootRoute, Outlet } from "@tanstack/react-router";
 import { ThemeProvider } from "@/components/theme-provider";
-import { ContentLayout } from "../components/admin-panel/content-layout";
-import AdminPanelLayout from "../components/admin-panel/admin-panel-layout";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "../components/ui/toaster";
-import WorkflowBreadcrumbs from "../components/workflow-breadcrumbs";
 
 export const Route = createRootRoute({
   component: Root,
@@ -17,14 +13,7 @@ function Root() {
     <>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-          <AdminPanelLayout>
-            <ContentLayout title="Account">
-              <WorkflowBreadcrumbs>
-                <Outlet />
-              </WorkflowBreadcrumbs>
-              <Toaster />
-            </ContentLayout>
-          </AdminPanelLayout>
+          <Outlet />
         </ThemeProvider>
       </QueryClientProvider>
     </>

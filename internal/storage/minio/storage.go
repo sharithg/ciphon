@@ -45,6 +45,32 @@ func (s *Storage) GetObjectBytes(ctx context.Context, bucketName string, objectN
 	return data, nil
 }
 
+func (s *Storage) DeleteObject(ctx context.Context, bucketName string, objectName string) error {
+	err := s.Client.RemoveObject(ctx, bucketName, objectName, minio.RemoveObjectOptions{})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Storage) ListObjects(ctx context.Context, bucketName string) ([]string, error) {
+	var objs []string
+	opts := minio.ListObjectsOptions{}
+
+	objectCh := s.Client.ListObjects(ctx, bucketName, opts)
+
+	for object := range objectCh {
+		if object.Err != nil {
+			return nil, object.Err
+		}
+
+		objs = append(objs, object.Key)
+	}
+
+	return objs, nil
+}
+
 func (s *Storage) CreateBucket(ctx context.Context, bucketName string) error {
 
 	err := s.Client.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{Region: "us-east-1"})
@@ -56,11 +82,7 @@ func (s *Storage) CreateBucket(ctx context.Context, bucketName string) error {
 	return nil
 }
 
-func (s *Storage) SetupBuckets() error {
-	ctx := context.Background()
-
-	bucketName := "node-pem-files"
-
+func (s *Storage) SetupBucket(ctx context.Context, bucketName string) error {
 	exists, err := s.Client.BucketExists(ctx, bucketName)
 
 	if err != nil {
@@ -71,6 +93,20 @@ func (s *Storage) SetupBuckets() error {
 		if err := s.CreateBucket(ctx, bucketName); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (s *Storage) SetupBuckets() error {
+	ctx := context.Background()
+
+	if err := s.SetupBucket(ctx, "node-pem-files"); err != nil {
+		return err
+	}
+
+	if err := s.SetupBucket(ctx, "avatars"); err != nil {
+		return err
 	}
 
 	return nil

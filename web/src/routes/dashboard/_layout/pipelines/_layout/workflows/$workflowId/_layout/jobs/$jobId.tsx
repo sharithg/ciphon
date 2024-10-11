@@ -1,66 +1,64 @@
-import { createLazyFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import { useGetSteps } from "@/hooks/react-query/use-workflows";
-import CommandOutput from "@/components/command-output";
+import { createFileRoute } from '@tanstack/react-router'
+import { useEffect, useMemo, useState } from 'react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
+import { Separator } from '@/components/ui/separator'
+import { Badge } from '@/components/ui/badge'
+import { useGetSteps } from '@/hooks/react-query/use-workflows'
+import CommandOutput from '@/components/command-output'
 
-export const Route = createLazyFileRoute(
-  "/pipelines/workflows/$workflowId/jobs/$jobId"
+export const Route = createFileRoute(
+  '/dashboard/_layout/pipelines/_layout/workflows/$workflowId/_layout/jobs/$jobId',
 )({
   component: () => (
     <>
       <JobSteps />
     </>
   ),
-});
+})
 
 function JobSteps() {
-  const [expandedCommands, setExpandedCommands] = useState<string[]>([]);
+  const [expandedCommands, setExpandedCommands] = useState<string[]>([])
 
-  const [userExpandedCommands, setUserExpandedCommands] = useState<string[]>(
-    []
-  );
+  const [userExpandedCommands, setUserExpandedCommands] = useState<string[]>([])
 
-  const { workflowId, jobId } = Route.useParams();
+  const { workflowId, jobId } = Route.useParams()
 
-  const { data } = useGetSteps(workflowId, jobId);
+  const { data } = useGetSteps(workflowId, jobId)
 
-  const steps = useMemo(() => data?.data ?? [], [data?.data]);
+  const steps = useMemo(() => data?.data ?? [], [data?.data])
 
   const toggleUserExpand = (id: string) => {
     setUserExpandedCommands((prev) =>
       prev.includes(id)
         ? prev.filter((commandId) => commandId !== id)
-        : [...prev, id]
-    );
-  };
+        : [...prev, id],
+    )
+  }
 
   useEffect(() => {
     if (steps.length) {
       const runningCommands = steps
         .filter(
-          (s) => s.status === "running" && !userExpandedCommands.includes(s.id)
+          (s) => s.status === 'running' && !userExpandedCommands.includes(s.id),
         )
-        .map((s) => s.id);
+        .map((s) => s.id)
 
-      setExpandedCommands(() => [...userExpandedCommands, ...runningCommands]);
+      setExpandedCommands(() => [...userExpandedCommands, ...runningCommands])
     }
-  }, [steps, userExpandedCommands]);
+  }, [steps, userExpandedCommands])
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "success":
-        return "bg-green-500";
-      case "failed":
-        return "bg-red-500";
-      case "running":
-        return "bg-yellow-500";
+      case 'success':
+        return 'bg-green-500'
+      case 'failed':
+        return 'bg-red-500'
+      case 'running':
+        return 'bg-yellow-500'
       default:
-        return "bg-gray-500";
+        return 'bg-gray-500'
     }
-  };
+  }
 
   return (
     <div className="flex-1 overflow-hidden">
@@ -81,7 +79,7 @@ function JobSteps() {
                 <span>{command.name || command.type}</span>
               </div>
               <Badge
-                className={`${command.status ? getStatusColor(command.status) : "bg-black-500"} text-white`}
+                className={`${command.status ? getStatusColor(command.status) : 'bg-black-500'} text-white`}
               >
                 {command.status}
               </Badge>
@@ -99,5 +97,5 @@ function JobSteps() {
         ))}
       </div>
     </div>
-  );
+  )
 }

@@ -1,3 +1,4 @@
+import { FileRoutesByPath } from "@tanstack/react-router";
 import { LayoutGrid, LucideIcon, Settings } from "lucide-react";
 
 type Submenu = {
@@ -7,7 +8,7 @@ type Submenu = {
 };
 
 type Menu = {
-  href: string;
+  href: FileRoutesByPath[keyof FileRoutesByPath]["fullPath"];
   label: string;
   active: boolean;
   icon: LucideIcon;
@@ -25,21 +26,21 @@ export function getMenuList(pathname: string): Group[] {
       groupLabel: "",
       menus: [
         {
-          href: "/pipelines",
+          href: "/dashboard/pipelines",
           label: "Pipelines",
           active: pathname.includes("/pipelines"),
           icon: LayoutGrid,
           submenus: [],
         },
         {
-          href: "/projects",
+          href: "/dashboard/projects",
           label: "Projects",
           active: pathname.includes("/projects"),
           icon: LayoutGrid,
           submenus: [],
         },
         {
-          href: "/settings",
+          href: "/dashboard/settings",
           label: "Settings",
           active: pathname.includes("/settings"),
           icon: Settings,

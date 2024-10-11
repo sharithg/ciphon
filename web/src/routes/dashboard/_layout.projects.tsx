@@ -1,5 +1,4 @@
-import React from "react";
-import { createLazyFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,11 +9,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { GitHubLogoIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons";
-import { useGetRepos } from "../hooks/react-query/use-github";
+import { useGetRepos } from "../../hooks/react-query/use-github";
 import { formatDistance } from "date-fns";
-import ConnectRepo from "../components/connect-repo";
+import ConnectRepo from "../../components/connect-repo";
 
-export const Route = createLazyFileRoute("/projects")({
+export const Route = createFileRoute("/dashboard/_layout/projects")({
   component: Projects,
 });
 

@@ -8,6 +8,7 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/sharithg/siphon/api"
+	"github.com/sharithg/siphon/internal/auth"
 	"github.com/sharithg/siphon/internal/db"
 	"github.com/sharithg/siphon/internal/env"
 	"github.com/sharithg/siphon/internal/repo"
@@ -77,12 +78,15 @@ func main() {
 		log.Fatal("error setting up minio buckets", err)
 	}
 
+	auth := auth.New(cfg.Github.AppConfig.OAuth.ClientID, cfg.Github.AppConfig.OAuth.ClientSecret, minioStorage, cfg.Addr)
+
 	app := &api.Application{
 		Config:       cfg,
 		Store:        store,
 		MinioStorage: minioStorage,
 		Github:       ghClient,
 		Cache:        redisClient,
+		Auth:         auth,
 	}
 
 	mux := app.Mount()

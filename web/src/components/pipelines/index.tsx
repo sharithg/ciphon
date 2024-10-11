@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -171,7 +171,7 @@ const Pipelines = () => {
               <TableCell className="p-2 text-md">
                 <Link
                   disabled={!run.status}
-                  to={`/pipelines/workflows/${run.workflowId}`}
+                  to={`/dashboard/pipelines/workflows/${run.workflowId}`}
                   className={cn(
                     run.status ? "text-blue-500 hover:underline" : ""
                   )}

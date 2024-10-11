@@ -1,4 +1,4 @@
-import { createLazyFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -34,11 +34,11 @@ import {
   nodeSchema,
   useAddNewNode,
   useGetNodes,
-} from "../hooks/react-query/use-nodes";
-import { useWebsocket } from "../hooks/use-websocket";
+} from "@/hooks/react-query/use-nodes";
+import { useWebsocket } from "@/hooks/use-websocket";
 import { useEffect } from "react";
 
-export const Route = createLazyFileRoute("/settings")({
+export const Route = createFileRoute("/dashboard/_layout/settings")({
   component: Settings,
 });
 

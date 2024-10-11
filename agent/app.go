@@ -1,13 +1,13 @@
-package ws
+package agent
 
 import (
 	"log"
-	"net"
 	"net/http"
 
 	"github.com/gorilla/websocket"
 	"github.com/sharithg/siphon/internal/config"
 	"github.com/sharithg/siphon/internal/docker"
+	"github.com/sharithg/siphon/internal/runner"
 	storage "github.com/sharithg/siphon/internal/storage/kv"
 )
 
@@ -23,25 +23,12 @@ type Application struct {
 	Store       *storage.KvStorage
 	Docker      *docker.Docker
 	AgentConfig *config.AgentConfig
+	Runner      *runner.Runner
 }
 
 type Config struct {
 	Addr string
 	Env  string
-}
-
-func ipWhitelisted(r *http.Request, whitelist []string) bool {
-	remoteIP, _, err := net.SplitHostPort(r.RemoteAddr)
-
-	if err != nil {
-		return false
-	}
-	for _, allowedIP := range whitelist {
-		if allowedIP == remoteIP {
-			return true
-		}
-	}
-	return false
 }
 
 func authMiddleware(token string, next http.HandlerFunc) http.HandlerFunc {
