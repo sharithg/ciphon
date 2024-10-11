@@ -1,27 +1,28 @@
-import { createFileRoute } from "@tanstack/react-router";
-import axios from "axios";
+import { createFileRoute, FileRoutesByPath } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { API_URL } from "../../../hooks/react-query/constants";
+import { useAuth } from "@/hooks/user-auth";
 
 export const Route = createFileRoute("/login/github/callback")({
   component: Callback,
 });
 
-const getToken = async (code: string) => {
-  const tok = await axios.get(
-    `${API_URL}/auth/login/github/callback?code=${code}`
-  );
-  console.log(tok.data);
-};
-
 function Callback() {
+  const { handleCallback } = useAuth();
+
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get("code");
-    console.log(`|${code}|`);
-    if (code) {
-      getToken(code).then().catch();
-    }
+    handleCallback()
+      .then(() => {
+        (window.location
+          .href as FileRoutesByPath[keyof FileRoutesByPath]["fullPath"]) =
+          "/dashboard/pipelines";
+      })
+      .catch(() => {
+        (window.location
+          .href as FileRoutesByPath[keyof FileRoutesByPath]["fullPath"]) =
+          "/login";
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
   return <></>;
 }

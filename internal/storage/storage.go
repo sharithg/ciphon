@@ -43,6 +43,7 @@ type Storage struct {
 	UsersStore interface {
 		Create(ctx context.Context, user User, githubInfo GitHubUserInfo) (*User, error)
 		GetByExternalId(ctx context.Context, id string) (*User, error)
+		GetById(ctx context.Context, id string) (*UserDisplay, error)
 	}
 }
 

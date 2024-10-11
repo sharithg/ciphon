@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -97,6 +98,10 @@ func (app *Application) createUserIfNotExists(ctx context.Context, ghResp []byte
 
 	if err != nil {
 		return nil, err
+	}
+
+	if gu.Login == "" {
+		return nil, errors.New("user login not found")
 	}
 
 	externalId := strconv.Itoa(gu.ID)

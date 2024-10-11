@@ -110,6 +110,9 @@ func (app *Application) Mount() http.Handler {
 		})
 		r.Group(func(r chi.Router) {
 			r.Use(app.JWTMiddleware)
+			r.Route("/user", func(r chi.Router) {
+				r.Get("/", app.getUser)
+			})
 			r.Route("/nodes", func(r chi.Router) {
 				r.Get("/", app.getNodesHandler)
 				r.Post("/", app.createNodeHandler)

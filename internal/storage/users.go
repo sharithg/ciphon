@@ -22,6 +22,13 @@ type GitHubUserInfo struct {
 	Data   auth.GitHubUser `json:"data" db:"data"`
 }
 
+type UserDisplay struct {
+	ID        string `json:"id"`
+	Username  string `json:"username"`
+	Email     string `json:"email"`
+	AvatarURL string `json:"avatarUrl"`
+}
+
 type UserStore struct {
 	pool *pgxpool.Pool
 }
@@ -71,6 +78,28 @@ func (s *UserStore) GetByExternalId(ctx context.Context, id string) (*User, erro
 			return nil, nil
 		}
 		return nil, fmt.Errorf("error getting user by external id: %s", err)
+	}
+
+	return &user, nil
+}
+
+func (s *UserStore) GetById(ctx context.Context, id string) (*UserDisplay, error) {
+	var user UserDisplay
+
+	query := `
+	SELECT u.id, u.username, u.email, gh.data ->> 'avatar_url' AS avatar_url
+	FROM users u
+	JOIN github_user_info gh ON u.id = gh.user_id
+	WHERE u.id = $1
+	`
+
+	err := s.pool.QueryRow(ctx, query, id).Scan(&user.ID, &user.Username, &user.Email, &user.AvatarURL)
+
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("error getting user by id: %s", err)
 	}
 
 	return &user, nil

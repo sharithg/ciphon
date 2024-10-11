@@ -19,7 +19,6 @@ func (app *Application) JWTMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Split the Authorization header to extract the token
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || parts[0] != "Bearer" {
 			app.unauthorizedErrorResponse(w, r, errors.New("invalid authorization header format"))
@@ -29,7 +28,7 @@ func (app *Application) JWTMiddleware(next http.Handler) http.Handler {
 		tokenStr := parts[1]
 		claims, err := app.Auth.VerifyToken(tokenStr)
 		if err != nil {
-			app.unauthorizedErrorResponse(w, r, errors.New("invalid token"))
+			app.unauthorizedErrorResponse(w, r, err)
 			return
 		}
 
@@ -37,4 +36,9 @@ func (app *Application) JWTMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func (app *Application) getUserFromContext(r *http.Request) (string, bool) {
+	user, ok := r.Context().Value(userContextKey).(string)
+	return user, ok
 }

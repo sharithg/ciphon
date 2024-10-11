@@ -8,7 +8,7 @@ import (
 )
 
 type Auth struct {
-	SecretKey string
+	SecretKey []byte
 }
 
 type Claims struct {
@@ -17,7 +17,7 @@ type Claims struct {
 }
 
 func New(s string) *Auth {
-	return &Auth{SecretKey: s}
+	return &Auth{SecretKey: []byte(s)}
 }
 
 func (a *Auth) CreateToken(userId string) (string, error) {
@@ -29,7 +29,7 @@ func (a *Auth) CreateToken(userId string) (string, error) {
 
 	tokenString, err := token.SignedString(a.SecretKey)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error signing jwt: %s", err)
 	}
 
 	return tokenString, nil
@@ -46,7 +46,7 @@ func (a *Auth) VerifyToken(tokenStr string) (*Claims, error) {
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error parsing jwt: %v", err)
 	}
 
 	if !token.Valid {
