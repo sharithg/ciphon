@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -102,97 +101,6 @@ func (app *Application) triggerWorkflow(w http.ResponseWriter, r *http.Request) 
 			slog.Error("error updating workflow status: %w", "err", err)
 		}
 	}()
-}
-
-func (app *Application) eventsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Expose-Headers", "Content-Type")
-
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
-		return
-	}
-
-	ctx := r.Context()
-
-	subscriber := app.Cache.Subscribe(ctx, "workflow_run", "job_run", "step_run")
-
-	for {
-		select {
-		case <-ctx.Done():
-			fmt.Println("Client disconnected")
-			return
-		default:
-			msg, err := subscriber.ReceiveMessage(ctx)
-
-			if err != nil {
-				http.Error(w, "Failed to marshal JSON", http.StatusInternalServerError)
-				return
-			}
-
-			fmt.Println("Recived message: ", msg.Payload)
-
-			_, err = fmt.Fprintf(w, "data: %s\n\n", msg.Payload)
-
-			if err != nil {
-				slog.Error("error writing conn", "error", err)
-				return
-			}
-			flusher.Flush()
-		}
-	}
-}
-
-func (app *Application) stepEventsHandler(w http.ResponseWriter, r *http.Request) {
-	stepId := chi.URLParam(r, "stepId")
-
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Expose-Headers", "Content-Type")
-
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
-		return
-	}
-
-	ctx := r.Context()
-
-	subscriber := app.Cache.Subscribe(ctx, fmt.Sprintf("stepId:%s", stepId))
-
-	for {
-		select {
-		case <-ctx.Done():
-			fmt.Println("Client disconnected")
-			return
-		default:
-			msg, err := subscriber.ReceiveMessage(ctx)
-
-			if err != nil {
-				http.Error(w, "Failed to marshal JSON", http.StatusInternalServerError)
-				return
-			}
-
-			fmt.Println("Recived message: ", msg.Payload)
-
-			_, err = fmt.Fprintf(w, "data: %s\n\n", msg.Payload)
-
-			if err != nil {
-				slog.Error("error writing conn", "error", err)
-				return
-			}
-
-			flusher.Flush()
-		}
-	}
 }
 
 func (app *Application) updateWorkflowStatus(ctx context.Context, workflowId, status string) error {

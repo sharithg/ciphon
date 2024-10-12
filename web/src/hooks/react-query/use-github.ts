@@ -1,8 +1,9 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import axios from "axios";
 import { API_URL } from "./constants";
 import { toast } from "../use-toast";
 import { fetchData } from ".";
+import { withJwt } from "../user-auth";
+import { apiClient } from "../../axios";
 
 export type TConnectRepo = {
   name: string;
@@ -43,9 +44,10 @@ export const useGetNewRepos = () => {
 export const useConnectRepo = () => {
   const mutation = useMutation({
     mutationFn: (data: TConnectRepo) => {
-      return axios.post(`${API_URL}/repos/connect`, data, {
+      return apiClient.post(`${API_URL}/repos/connect`, data, {
         headers: {
           "Content-Type": "application/json",
+          ...withJwt(),
         },
       });
     },

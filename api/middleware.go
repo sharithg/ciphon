@@ -32,7 +32,7 @@ func (app *Application) JWTMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), userContextKey, claims.UserId)
+		ctx := context.WithValue(r.Context(), userContextKey, claims.UserID)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

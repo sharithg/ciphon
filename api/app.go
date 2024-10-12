@@ -107,6 +107,7 @@ func (app *Application) Mount() http.Handler {
 		r.Route("/auth", func(r chi.Router) {
 			r.Get("/login/github", app.githubLoginHandler)
 			r.Get("/login/github/callback", app.githubCallbackHandler)
+			r.Post("/refresh-token", app.refreshTokens)
 		})
 		r.Group(func(r chi.Router) {
 			r.Use(app.JWTMiddleware)

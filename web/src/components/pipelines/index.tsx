@@ -89,12 +89,6 @@ const Pipelines = () => {
   const { data, refetch } = useGetWorkflows();
   const mutation = useRunWorkflow();
 
-  // useWorkflowEvents(`${API_URL}/sse/workflows/run-events`, (event) => {
-  //   if (event.type === "workflow") {
-  //     refetch();
-  //   }
-  // });
-
   return (
     <div className="container mx-auto py-10">
       <h1 className="text-2xl font-bold mb-4">Pipeline Runs</h1>

@@ -14,8 +14,6 @@ func (app *Application) getUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("a ...any")
-
 	user, err := app.Store.UsersStore.GetById(r.Context(), userId)
 
 	if err != nil {

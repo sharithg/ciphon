@@ -1,9 +1,11 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import axios from "axios";
 import { z } from "zod";
 import { toast } from "../use-toast";
 import { Node } from "@/@types/api";
 import { API_URL } from "./constants";
+import { fetchData } from ".";
+import { withJwt } from "../user-auth";
+import { apiClient } from "../../axios";
 
 export const nodeSchema = z.object({
   name: z.string().min(2, {
@@ -31,9 +33,10 @@ export const useAddNewNode = (input: { onSuccess?: () => Promise<void> }) => {
       formData.append("user", newNode.user);
       formData.append("port", newNode.port.toString());
 
-      return axios.post(`${API_URL}/nodes`, formData, {
+      return apiClient.post(`${API_URL}/nodes`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
+          ...withJwt(),
         },
       });
     },
@@ -59,7 +62,7 @@ export const useAddNewNode = (input: { onSuccess?: () => Promise<void> }) => {
 export const useGetNodes = () => {
   return useQuery({
     queryKey: ["nodes"],
-    queryFn: () => axios.get<Node[]>(`${API_URL}/nodes`),
+    queryFn: () => fetchData<Node[]>(`${API_URL}/nodes`),
     refetchInterval: 3000,
   });
 };

@@ -1,9 +1,10 @@
 import { API_URL } from "./constants";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { fetchData, WithData } from ".";
-import axios from "axios";
 import { useAtom } from "jotai";
 import { jobs, workflows } from "../../components/atoms/workflows";
+import { withJwt } from "../user-auth";
+import { apiClient } from "../../axios";
 
 export type WorklfowRun = {
   commitSha: string;
@@ -54,7 +55,15 @@ export const useGetWorkflows = () => {
 export const useRunWorkflow = () => {
   const mutation = useMutation({
     mutationFn: (workflowId: string) => {
-      return axios.post(`${API_URL}/workflows/trigger/${workflowId}`);
+      return apiClient.post(
+        `${API_URL}/workflows/trigger/${workflowId}`,
+        {},
+        {
+          headers: {
+            ...withJwt(),
+          },
+        }
+      );
     },
   });
   return mutation;

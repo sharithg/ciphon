@@ -13,6 +13,10 @@ import (
 	"github.com/sharithg/siphon/internal/storage"
 )
 
+type RefreshToken struct {
+	Token string `json:"token"`
+}
+
 func (app *Application) githubLoginHandler(w http.ResponseWriter, r *http.Request) {
 	githubClientID := app.Config.Github.AppConfig.OAuth.ClientID
 
@@ -66,6 +70,23 @@ func (app *Application) githubCallbackHandler(w http.ResponseWriter, r *http.Req
 	app.loggedinHandler(w, r, githubData)
 }
 
+func (app *Application) refreshTokens(w http.ResponseWriter, r *http.Request) {
+	var payload RefreshToken
+	if err := readJSON(w, r, &payload); err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	token, err := app.Auth.RefreshToken(payload.Token)
+
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	app.jsonResponse(w, http.StatusCreated, token)
+}
+
 func (app *Application) loggedinHandler(w http.ResponseWriter, r *http.Request, githubData []byte) {
 	if string(githubData) == "" {
 		fmt.Fprintf(w, "UNAUTHORIZED!")
@@ -79,18 +100,14 @@ func (app *Application) loggedinHandler(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	token, err := app.Auth.CreateToken(user.ID)
+	tokens, err := app.Auth.CreateToken(user.ID)
 
 	if err != nil {
 		app.internalServerError(w, r, err)
 		return
 	}
 
-	response := map[string]string{
-		"token": token,
-	}
-
-	app.jsonResponse(w, http.StatusOK, response)
+	app.jsonResponse(w, http.StatusOK, tokens)
 }
 
 func (app *Application) createUserIfNotExists(ctx context.Context, ghResp []byte) (*storage.User, error) {
