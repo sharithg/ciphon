@@ -66,21 +66,6 @@ func (app *Application) Mount() http.Handler {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 
-	// r.Use(func(next http.Handler) http.Handler {
-	// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	// 		ignoredPaths := map[string]struct{}{
-	// 			"/v1/nodes": {},
-	// 		}
-
-	// 		if _, ok := ignoredPaths[r.URL.Path]; ok {
-	// 			next.ServeHTTP(w, r)
-	// 			return
-	// 		}
-
-	// 		middleware.Logger(next).ServeHTTP(w, r)
-	// 	})
-	// })
-
 	r.Use(middleware.Recoverer)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{env.GetString("CORS_ALLOWED_ORIGIN", false, "http://localhost:5173")},
@@ -91,15 +76,7 @@ func (app *Application) Mount() http.Handler {
 		MaxAge:           300,
 	}))
 
-	// Set a timeout value on the request context (ctx), that will signal
-	// through ctx.Done() that the request has timed out and further
-	// processing should be stopped.
 	r.Use(middleware.Timeout(60 * time.Second))
-
-	// authRoutes, avaRoutes := app.Auth.Service.Handlers()
-
-	// r.Mount("/auth", authRoutes)
-	// r.Mount("/avatar", avaRoutes)
 
 	r.Handle(githubapp.DefaultWebhookRoute, webhookHandler)
 
@@ -124,9 +101,6 @@ func (app *Application) Mount() http.Handler {
 				r.Post("/connect", app.connectRepoHandler)
 				r.Get("/new", app.getNewReposHandler)
 			})
-
-			// r.HandleFunc("/sse/steps/run-events/{stepId}", app.stepEventsHandler)
-			// r.HandleFunc("/sse/workflows/run-events", app.eventsHandler)
 
 			r.Route("/workflows", func(r chi.Router) {
 				r.Get("/", app.getWorkflows)
