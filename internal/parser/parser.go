@@ -19,9 +19,9 @@ func ParseConfig(data string) (*Config, error) {
 
 func (c *Config) ValidateWorkflows() error {
 	for workflowName, workflow := range c.Workflows {
-		for _, jobName := range workflow.Jobs {
-			if _, exists := c.Jobs[jobName]; !exists {
-				return fmt.Errorf("workflow '%s' references undefined job '%s'", workflowName, jobName)
+		for _, job := range workflow.Jobs {
+			if _, exists := c.Jobs[job.Name]; !exists {
+				return fmt.Errorf("workflow '%s' references undefined job '%s'", workflowName, job.Name)
 			}
 		}
 	}
@@ -40,16 +40,28 @@ func (c *Config) GetWorkflowJobs(workflowName string) ([]JobWithName, error) {
 	}
 
 	var jobs []JobWithName
-	for _, jobName := range workflow.Jobs {
-		job, exists := c.Jobs[jobName]
+	for _, jobRun := range workflow.Jobs {
+		job, exists := c.Jobs[jobRun.Name]
 		if !exists {
-			return nil, fmt.Errorf("job '%s' not found in workflow '%s'", jobName, workflowName)
+			return nil, fmt.Errorf("job '%s' not found in workflow '%s'", jobRun.Name, workflowName)
 		}
 		jobs = append(jobs, JobWithName{
 			Job:  job,
-			Name: jobName,
+			Name: jobRun.Name,
 		})
 	}
 
 	return jobs, nil
+}
+
+func (c *Config) GetJobRequires(jobName string) []string {
+	for _, j := range c.Workflows {
+		for _, job := range j.Jobs {
+			if jobName == job.Name {
+				return job.Requires
+			}
+		}
+	}
+
+	return nil
 }

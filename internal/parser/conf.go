@@ -1,6 +1,10 @@
 package parser
 
-import "gopkg.in/yaml.v3"
+import (
+	"fmt"
+
+	"gopkg.in/yaml.v3"
+)
 
 type Config struct {
 	Version   string              `yaml:"version"`
@@ -84,6 +88,38 @@ func (w *StepWrapper) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return unmarshal(&w.Step)
 }
 
+func (w *JobWithRequires) UnmarshalYAML(unmarshal func(interface{}) error) error {
+
+	var jobName string
+	if err := unmarshal(&jobName); err == nil {
+		w.Name = jobName
+		return nil
+	}
+
+	var jobMap map[string]interface{}
+	if err := unmarshal(&jobMap); err == nil {
+		for key, value := range jobMap {
+			w.Name = key
+
+			if requires, ok := value.(map[string]interface{})["requires"]; ok {
+				switch v := requires.(type) {
+				case []interface{}:
+					for _, req := range v {
+						w.Requires = append(w.Requires, req.(string))
+					}
+				case string:
+					w.Requires = append(w.Requires, v)
+				default:
+					return fmt.Errorf("unexpected type for requires field")
+				}
+			}
+		}
+		return nil
+	}
+
+	return fmt.Errorf("failed to unmarshal job")
+}
+
 func decodeMapToStruct(data map[string]interface{}, out interface{}) error {
 	bytes, err := yaml.Marshal(data)
 	if err != nil {
@@ -109,5 +145,10 @@ type RunStep struct {
 }
 
 type Workflow struct {
-	Jobs []string `yaml:"jobs"`
+	Jobs []JobWithRequires `yaml:"jobs"`
+}
+
+type JobWithRequires struct {
+	Name     string   `yaml:"name"`
+	Requires []string `yaml:"requires,omitempty"`
 }

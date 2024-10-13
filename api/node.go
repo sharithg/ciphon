@@ -41,8 +41,6 @@ func (app *Application) installTools(ctx context.Context, nodeId, token string, 
 
 func (app *Application) createNodeHandler(w http.ResponseWriter, r *http.Request) {
 
-	fmt.Println("File Upload Endpoint Hit")
-
 	err := r.ParseMultipartForm(10 << 20)
 	if err != nil {
 		log.Printf("Error parsing multipart form: %v", err)

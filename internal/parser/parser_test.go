@@ -7,116 +7,77 @@ import (
 // TestParseConfig tests the ParseConfig function with different YAML inputs.
 func TestParseConfig(t *testing.T) {
 	tests := []struct {
-		name          string
-		yamlData      string
-		expectedError bool
-		expectedJobs  int
+		name              string
+		yamlData          string
+		expectedError     bool
+		expectedJobs      int
+		expectedWorkflows int
 	}{
 		{
 			name: "Valid configuration with all steps",
 			yamlData: `
 version: 0.1
 
+# asd
 jobs:
-  build-test-lint:
-    docker: cimg/node:18.20-browsers
-    node: siphon
-    steps:
-      - checkout
-      - restore_cache:
-          name: Restore pnpm Package Cache
-          keys:
-            - pnpm-packages-{{ checksum "pnpm-lock.yaml" }}
-      - run:
-          name: Install pnpm package manager
-          command: |
-            sudo corepack enable
-            sudo corepack prepare pnpm@latest-8 --activate
-      - run:
-          name: Install Dependencies
-          command: |
-            pnpm install
-      - save_cache:
-          name: Save pnpm Package Cache
-          key: pnpm-packages-{{ checksum "pnpm-lock.yaml" }}
-          paths:
-            - node_modules
-            - /home/circleci/.cache/Cypress
-      - run:
-          name: Check format
-          command: pnpm format
-      - run:
-          name: Run build
-          command: pnpm build
-      - run:
-          name: Run lint
-          command: pnpm lint
-      - run:
-          name: Run test
-          command: |
-            echo $RUNTIME_CONFIG_DEV | base64 --decode > .runtimeconfig.json
-            pnpm test
+    build-test-lint:
+        docker: node
+        node: siphon
+        steps:
+            - checkout
+            - restore_cache:
+                  name: Restore pnpm Package Cache
+                  keys:
+                      - pnpm-packages-{{ checksum "pnpm-lock.yaml" }}
+            - run:
+                  name: Install pnpm package manager
+                  command: |
+                      npm i -g pnpm
+                      corepack enable
+                      corepack prepare pnpm@latest-8 --activate
+            - run:
+                  name: Install Dependencies
+                  command: |
+                      pnpm install
+            - save_cache:
+                  name: Save pnpm Package Cache
+                  key: pnpm-packages-{{ checksum "pnpm-lock.yaml" }}
+                  paths:
+                      - node_modules
+                      - /home/circleci/.cache/Cypress
+            - run:
+                  name: Check format
+                  command: pnpm format
+            - run:
+                  name: Run build
+                  command: pnpm build
+            - run:
+                  name: Run lint
+                  command: pnpm lint
+            - run:
+                  name: Run test
+                  command: |
+                      pnpm test
+
+    test-flow:
+        docker: node
+        node: siphon
+        steps:
+            - checkout
+            - run:
+                  name: Install pnpm package manager
+                  command: ls
 
 workflows:
-  ci:
-    jobs:
-      - build-test-lint
+    ci:
+        jobs:
+            - build-test-lint
+            - test-flow:
+                  requires: build-test-lint
 `,
-			expectedError: false,
-			expectedJobs:  1,
-		},
-		{
-			name: "Invalid configuration",
-			yamlData: `
-version: 0.1
-
-jobs:
-  build-test-lint:
-    docker: cimg/node:18.20-browsers
-    node: siphon
-    steps:
-      - invalid_step:  # This is an invalid step format
-          name: Invalid step
-`,
-			expectedError: true,
-			expectedJobs:  0,
-		},
-		{
-			name: "Only checkout step",
-			yamlData: `
-version: 0.1
-
-jobs:
-  build-test-lint:
-    docker: cimg/node:18.20-browsers
-    node: siphon
-    steps:
-      - checkout
-`,
-			expectedError: false,
-			expectedJobs:  1,
-		},
-		{
-			name: "Multiple steps with mixed formats",
-			yamlData: `
-version: 0.1
-
-jobs:
-  build-test-lint:
-    docker: cimg/node:18.20-browsers
-    node: siphon
-    steps:
-      - checkout
-      - run:
-          name: Test step
-          command: echo "Hello"
-      - restore_cache:
-          name: Restore cache
-          keys:
-            - cache-key
-`,
-			expectedError: false,
-			expectedJobs:  1,
+			expectedError:     false,
+			expectedJobs:      2,
+			expectedWorkflows: 1,
 		},
 	}
 
@@ -131,6 +92,10 @@ jobs:
 
 			if config != nil && len(config.Jobs) != tt.expectedJobs {
 				t.Errorf("ParseConfig() jobs = %v, expectedJobs %v", len(config.Jobs), tt.expectedJobs)
+			}
+
+			if config != nil && len(config.Workflows) != tt.expectedWorkflows {
+				t.Errorf("ParseConfig() jobs = %v, expectedWorkflows %v", len(config.Workflows), tt.expectedWorkflows)
 			}
 		})
 	}

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -52,23 +53,36 @@ func (wm *WorkflowManager) TriggerWorkflow(ctx context.Context, workflowId strin
 		return err
 	}
 
+	var wg sync.WaitGroup
+
 	for jobId, steps := range jobMap {
-		fmt.Printf("Processing job: %s\n", jobId)
+		wg.Add(1)
 
-		if err := wm.updateJobStatus(ctx, jobId, "running"); err != nil {
-			slog.Error("error updating workflow status: %w", "err", err)
-		}
+		go func(jobId string, steps []storage.WorkflowRunSteps) {
+			defer wg.Done()
 
-		if err := wm.executeJob(ctx, steps, nodes[0]); err != nil {
-			if err := wm.updateJobStatus(ctx, jobId, "failed"); err != nil {
+			fmt.Printf("Processing job: %s\n", jobId)
+
+			if err := wm.updateJobStatus(ctx, jobId, "running"); err != nil {
+				slog.Error("error updating workflow status: %w", "err", err)
+				return
+			}
+
+			if err := wm.executeJob(ctx, steps, nodes[0]); err != nil {
+				if err := wm.updateJobStatus(ctx, jobId, "failed"); err != nil {
+					slog.Error("error updating workflow status: %w", "err", err)
+				}
+				slog.Error("error executing job: %w", "err", err)
+				return
+			}
+
+			if err := wm.updateJobStatus(ctx, jobId, "success"); err != nil {
 				slog.Error("error updating workflow status: %w", "err", err)
 			}
-			return err
-		}
-		if err := wm.updateJobStatus(ctx, jobId, "success"); err != nil {
-			slog.Error("error updating workflow status: %w", "err", err)
-		}
+		}(jobId, steps)
 	}
+
+	wg.Wait()
 
 	return nil
 }

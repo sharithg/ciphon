@@ -46,12 +46,12 @@ function Pipeline() {
   useEffect(() => {
     if (data?.data) {
       setNodes(
-        data.data.map((v) => ({
+        data.data.map((v, i) => ({
           id: v.id,
           sourcePosition: Position.Right,
           type: "customNode",
           data: { label: v.name, status: v.status },
-          position: { x: 0, y: 80 },
+          position: { x: 0, y: 80 * (i + 1) },
         }))
       );
     }

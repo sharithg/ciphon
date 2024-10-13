@@ -26,18 +26,12 @@ func New(s string) *Auth {
 }
 
 func (a *Auth) CreateToken(userId string) (*TokenPair, error) {
-	accessTokenClaims := jwt.MapClaims{
-		"userId": userId,
-	}
-	at, err := a.generateToken(accessTokenClaims, a.SecretKey, time.Minute*15) // 15-minute expiration
+	at, err := a.generateTokenWithUser(userId, time.Minute*15)
 	if err != nil {
 		return nil, fmt.Errorf("error signing access token: %v", err)
 	}
 
-	refreshTokenClaims := jwt.MapClaims{
-		"sub": 1,
-	}
-	rt, err := a.generateToken(refreshTokenClaims, []byte("secret"), time.Hour*24) // 24-hour expiration
+	rt, err := a.generateRefreshToken(userId)
 	if err != nil {
 		return nil, fmt.Errorf("error signing refresh token: %v", err)
 	}
@@ -66,7 +60,7 @@ func (a *Auth) VerifyToken(tokenStr string) (*Claims, error) {
 }
 
 func (a *Auth) RefreshToken(oldRefreshToken string) (*TokenPair, error) {
-	refreshToken, err := a.parseAndVerifyToken(oldRefreshToken, []byte("secret"))
+	refreshToken, err := a.parseAndVerifyToken(oldRefreshToken, a.SecretKey)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing refresh token: %v", err)
 	}
@@ -76,23 +70,18 @@ func (a *Auth) RefreshToken(oldRefreshToken string) (*TokenPair, error) {
 	}
 
 	claims, ok := refreshToken.Claims.(jwt.MapClaims)
-	if !ok || claims["sub"] != 1 {
+	sub, _ := claims["sub"].(float64)
+
+	if !ok || int(sub) != 1 {
 		return nil, fmt.Errorf("invalid refresh token claims")
 	}
 
-	newAccessTokenClaims := jwt.MapClaims{
-		"userId": claims["userId"],
-	}
-	at, err := a.generateToken(newAccessTokenClaims, a.SecretKey, time.Minute*15)
+	at, err := a.generateTokenWithUser(claims["userId"].(string), time.Minute*15)
 	if err != nil {
 		return nil, fmt.Errorf("error signing new access token: %v", err)
 	}
 
-	newRefreshTokenClaims := jwt.MapClaims{
-		"sub":    1,
-		"userId": claims["userId"],
-	}
-	rt, err := a.generateToken(newRefreshTokenClaims, []byte("secret"), time.Hour*24)
+	rt, err := a.generateRefreshToken(claims["userId"].(string))
 	if err != nil {
 		return nil, fmt.Errorf("error signing new refresh token: %v", err)
 	}
@@ -100,8 +89,24 @@ func (a *Auth) RefreshToken(oldRefreshToken string) (*TokenPair, error) {
 	return &TokenPair{AccessToken: at, RefreshToken: rt}, nil
 }
 
-func (a *Auth) generateToken(claims jwt.MapClaims, secretKey []byte, duration time.Duration) (string, error) {
-	claims["exp"] = time.Now().Add(duration).Unix()
+func (a *Auth) generateTokenWithUser(userId string, duration time.Duration) (string, error) {
+	claims := jwt.MapClaims{
+		"userId": userId,
+		"exp":    time.Now().Add(duration).Unix(),
+	}
+	return a.generateToken(claims, a.SecretKey)
+}
+
+func (a *Auth) generateRefreshToken(userId string) (string, error) {
+	claims := jwt.MapClaims{
+		"sub":    1,
+		"userId": userId,
+		"exp":    time.Now().Add(time.Hour * 24).Unix(),
+	}
+	return a.generateToken(claims, a.SecretKey)
+}
+
+func (a *Auth) generateToken(claims jwt.MapClaims, secretKey []byte) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(secretKey)
 }

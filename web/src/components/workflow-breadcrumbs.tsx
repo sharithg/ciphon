@@ -11,9 +11,9 @@ import { jobs, workflows } from "./atoms/workflows";
 import { useMemo } from "react";
 
 function getPathType(path: string) {
-  const workflowRegex = /^\/pipelines\/workflows\/([a-f0-9-]+)$/;
+  const workflowRegex = /^\/dashboard\/pipelines\/workflows\/([a-f0-9-]+)$/;
   const jobsRegex =
-    /^\/pipelines\/workflows\/([a-f0-9-]+)\/jobs\/([a-f0-9-]+)$/;
+    /^\/dashboard\/pipelines\/workflows\/([a-f0-9-]+)\/jobs\/([a-f0-9-]+)$/;
 
   const jobsMatch = jobsRegex.exec(path);
   if (jobsMatch) {
@@ -62,7 +62,7 @@ const WorkflowBreadcrumbs = ({ children }: { children: React.ReactNode }) => {
             <>
               <BreadcrumbItem>
                 <BreadcrumbLink>
-                  <Link to="/pipelines">Workflows</Link>
+                  <Link to="/dashboard/pipelines">Workflows</Link>
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
@@ -78,7 +78,9 @@ const WorkflowBreadcrumbs = ({ children }: { children: React.ReactNode }) => {
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 <BreadcrumbLink>
-                  <Link to={`/pipelines/workflows/${currentPath.workflowId}`}>
+                  <Link
+                    to={`/dashboard/pipelines/workflows/${currentPath.workflowId}`}
+                  >
                     Jobs
                   </Link>
                 </BreadcrumbLink>

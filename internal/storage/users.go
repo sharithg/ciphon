@@ -92,7 +92,6 @@ func (s *UserStore) GetById(ctx context.Context, id string) (*UserDisplay, error
 	JOIN github_user_info gh ON u.id = gh.user_id
 	WHERE u.id = $1
 	`
-
 	err := s.pool.QueryRow(ctx, query, id).Scan(&user.ID, &user.Username, &user.Email, &user.AvatarURL)
 
 	if err != nil {

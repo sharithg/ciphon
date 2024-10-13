@@ -58,7 +58,7 @@ const getUser = async () => {
 
 export const refreshAccessToken = async (token: string) => {
   const tok = await apiClient.post<WithData<Tokens>>(
-    `${API_URL}/user`,
+    `${API_URL}/auth/refresh-token`,
     { token },
     {
       headers: {
@@ -74,8 +74,13 @@ export const isAuthenticated = async () => {
   if (!token) {
     return false;
   }
+  const refreshToken = localStorage.getItem("refreshToken");
+  if (!refreshToken) {
+    return false;
+  }
+
   if (isTokenExpired(token)) {
-    const newTokens = await refreshAccessToken(token);
+    const newTokens = await refreshAccessToken(refreshToken);
     localStorage.setItem("accessToken", newTokens.accessToken);
     localStorage.setItem("refreshToken", newTokens.refreshToken);
   }

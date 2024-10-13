@@ -113,7 +113,5 @@ func (a *Auth) GetGithubAccessToken(code, clientID, clientSecret string) (string
 	var ghresp githubAccessTokenResponse
 	json.Unmarshal(respbody, &ghresp)
 
-	fmt.Println(string(respbody))
-
 	return ghresp.AccessToken, nil
 }
