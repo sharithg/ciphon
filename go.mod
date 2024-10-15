@@ -27,6 +27,7 @@ require (
 	cloud.google.com/go/compute/metadata v0.5.2 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/alexedwards/scs v1.4.1 // indirect
+	github.com/bmatcuk/doublestar/v4 v4.7.1 // indirect
 	github.com/bradleyfalzon/ghinstallation/v2 v2.11.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/dghubble/oauth1 v0.7.3 // indirect

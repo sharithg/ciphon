@@ -5,47 +5,20 @@ import { useAtom } from "jotai";
 import { jobs, workflows } from "../../components/atoms/workflows";
 import { withJwt } from "../user-auth";
 import { apiClient } from "../../axios";
-
-export type WorklfowRun = {
-  commitSha: string;
-  repoName: string;
-  pipelineId: string;
-  workflowId: string;
-  workflowName: string;
-  status: string;
-  branch: string;
-  createdAt: string;
-  duration: number | null;
-};
-
-export type Job = {
-  id: string;
-  name: string;
-  status: string;
-};
-
-export type Step = {
-  type: string;
-  id: string;
-  name: string;
-  command: string;
-  status: string | null;
-};
-
-type CommandOutput = {
-  id: string;
-  step_id: string;
-  stdout: string;
-  type?: string;
-  created_at: string;
-};
+import {
+  TCommandOutput,
+  TJobs,
+  TSteps,
+  TWorkflowRunInfo,
+} from "../../types/api";
 
 export const useGetWorkflows = () => {
   const [, setWorkflows] = useAtom(workflows);
 
   return useQuery({
     queryKey: ["workflows"],
-    queryFn: () => fetchData<WithData<WorklfowRun[]>>(`${API_URL}/workflows`),
+    queryFn: () =>
+      fetchData<WithData<TWorkflowRunInfo[]>>(`${API_URL}/workflows`),
     onSuccess: (data) => {
       setWorkflows(data.data);
     },
@@ -75,9 +48,9 @@ export const useGetJobs = (workflowId: string) => {
   return useQuery({
     queryKey: [`workflows/${workflowId}/jobs`],
     queryFn: () =>
-      fetchData<WithData<Job[]>>(`${API_URL}/workflows/${workflowId}/jobs`),
+      fetchData<TJobs[]>(`${API_URL}/workflows/${workflowId}/jobs`),
     onSuccess: (data) => {
-      setJobs(data.data);
+      setJobs(data);
     },
   });
 };
@@ -86,7 +59,7 @@ export const useGetSteps = (workflowId: string, jobId: string) => {
   return useQuery({
     queryKey: [`workflows/${workflowId}/jobs`],
     queryFn: () =>
-      fetchData<WithData<Step[]>>(
+      fetchData<WithData<TSteps[]>>(
         `${API_URL}/workflows/${workflowId}/jobs/${jobId}/steps`
       ),
     refetchInterval: 500,
@@ -102,7 +75,7 @@ export const useGetCommandOutput = (
   return useQuery({
     queryKey: [`workflows/${workflowId}/jobs/${jobId}/steps/${stepId}/output`],
     queryFn: () =>
-      fetchData<WithData<CommandOutput[]>>(
+      fetchData<TCommandOutput[]>(
         `${API_URL}/workflows/${workflowId}/jobs/${jobId}/steps/${stepId}/output`
       ),
     refetchInterval: 500,

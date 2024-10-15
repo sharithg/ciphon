@@ -18,7 +18,7 @@ type JobRun struct {
 	UpdatedAt  time.Time `db:"updated_at"`
 }
 
-type Jobs struct {
+type TsJobs struct {
 	ID     string  `db:"id" json:"id"`
 	Name   string  `db:"name" json:"name"`
 	Status *string `db:"status" json:"status"`
@@ -42,8 +42,8 @@ func (s *JobRunStore) Create(ctx context.Context, jobRun JobRun) (string, error)
 	return id, nil
 }
 
-func (s *JobRunStore) GetByWorkflowId(ctx context.Context, workflowId string) ([]Jobs, error) {
-	var jobs []Jobs
+func (s *JobRunStore) GetByWorkflowId(ctx context.Context, workflowId string) ([]TsJobs, error) {
+	var jobs []TsJobs
 
 	query := `
 	SELECT id, name, status 
@@ -59,7 +59,7 @@ func (s *JobRunStore) GetByWorkflowId(ctx context.Context, workflowId string) ([
 	defer rows.Close()
 
 	for rows.Next() {
-		var job Jobs
+		var job TsJobs
 		err := rows.Scan(&job.ID, &job.Name, &job.Status)
 		if err != nil {
 			return nil, err

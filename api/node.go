@@ -18,7 +18,7 @@ import (
 	"github.com/sharithg/siphon/internal/storage"
 )
 
-type Node struct {
+type TsNode struct {
 	Id     string `json:"id"`
 	Host   string `json:"host"`
 	Name   string `json:"name"`
@@ -163,9 +163,9 @@ func (app *Application) installToolsForNode(w http.ResponseWriter, r *http.Reque
 func (app *Application) getNodesHandler(w http.ResponseWriter, r *http.Request) {
 	nodes, err := app.Store.Nodes.All(r.Context())
 
-	var nodesList []Node
+	var nodesList []TsNode
 	for _, node := range nodes {
-		nodesList = append(nodesList, Node{
+		nodesList = append(nodesList, TsNode{
 			Id:     node.Id,
 			Host:   node.Host,
 			Name:   node.Name,

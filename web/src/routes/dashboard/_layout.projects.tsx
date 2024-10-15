@@ -22,7 +22,7 @@ function Projects() {
 
   const repos = useGetRepos();
 
-  const repoData = repos.data?.data ?? [];
+  const repoData = repos.data ?? [];
 
   return (
     <div className="space-y-4 pt-5">

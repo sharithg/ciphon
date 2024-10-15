@@ -22,7 +22,7 @@ type GitHubUserInfo struct {
 	Data   auth.GitHubUser `json:"data" db:"data"`
 }
 
-type UserDisplay struct {
+type TsUserDisplay struct {
 	ID        string `json:"id"`
 	Username  string `json:"username"`
 	Email     string `json:"email"`
@@ -83,8 +83,8 @@ func (s *UserStore) GetByExternalId(ctx context.Context, id string) (*User, erro
 	return &user, nil
 }
 
-func (s *UserStore) GetById(ctx context.Context, id string) (*UserDisplay, error) {
-	var user UserDisplay
+func (s *UserStore) GetById(ctx context.Context, id string) (*TsUserDisplay, error) {
+	var user TsUserDisplay
 
 	query := `
 	SELECT u.id, u.username, u.email, gh.data ->> 'avatar_url' AS avatar_url

@@ -11,19 +11,19 @@ import {
 } from "@/components/ui/dialog";
 import { GitBranch } from "lucide-react";
 import {
-  TConnectRepo,
   useConnectRepo,
   useGetNewRepos,
 } from "../hooks/react-query/use-github";
+import { TConnectRepoRequest } from "../types/api";
 
 export default function ConnectRepo() {
   const [isOpen, setIsOpen] = useState(false);
   const repos = useGetNewRepos();
 
   const mutation = useConnectRepo();
-  const repoData = repos.data?.data ?? [];
+  const repoData = repos.data ?? [];
 
-  const handleConnect = async (repoData: TConnectRepo) => {
+  const handleConnect = async (repoData: TConnectRepoRequest) => {
     mutation.mutate(repoData);
   };
 
@@ -44,7 +44,7 @@ export default function ConnectRepo() {
             {repoData.length ? (
               repoData.map((repo) => (
                 <Button
-                  key={repo.repoId}
+                  key={repo.id}
                   onClick={() =>
                     handleConnect({
                       name: repo.name,

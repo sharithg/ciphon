@@ -4,46 +4,29 @@ import { toast } from "../use-toast";
 import { fetchData } from ".";
 import { withJwt } from "../user-auth";
 import { apiClient } from "../../axios";
-
-export type TConnectRepo = {
-  name: string;
-  owner: string;
-};
-
-export type TGithubRepo = {
-  repoId: number;
-  name: string;
-  owner: string;
-  description: string;
-  url: string;
-  repoCreatedAt: string;
-};
-
-export type TNewGithubRepos = {
-  id: number;
-  name: string;
-  description: string;
-  lastUpdated: string;
-  owner: string;
-};
+import {
+  TConnectRepoRequest,
+  TGithubRepoResponse,
+  TListRepo,
+} from "../../types/api";
 
 export const useGetRepos = () => {
   return useQuery({
     queryKey: ["repos"],
-    queryFn: () => fetchData<{ data: TGithubRepo[] }>(`${API_URL}/repos`),
+    queryFn: () => fetchData<TListRepo[]>(`${API_URL}/repos`),
   });
 };
 
 export const useGetNewRepos = () => {
   return useQuery({
     queryKey: ["new-repos"],
-    queryFn: () => fetchData<{ data: TGithubRepo[] }>(`${API_URL}/repos/new`),
+    queryFn: () => fetchData<TGithubRepoResponse[]>(`${API_URL}/repos/new`),
   });
 };
 
 export const useConnectRepo = () => {
   const mutation = useMutation({
-    mutationFn: (data: TConnectRepo) => {
+    mutationFn: (data: TConnectRepoRequest) => {
       return apiClient.post(`${API_URL}/repos/connect`, data, {
         headers: {
           "Content-Type": "application/json",

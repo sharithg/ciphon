@@ -14,7 +14,7 @@ type Storage struct {
 		UpdateStatus(ctx context.Context, nodeID string, status string) error
 	}
 	Repos interface {
-		All(ctx context.Context) ([]ListRepo, error)
+		All(ctx context.Context) ([]TsListRepo, error)
 		Create(ctx context.Context, repo CreateRepo) (string, error)
 	}
 	PipelineRunsStore interface {
@@ -22,7 +22,7 @@ type Storage struct {
 	}
 	WorkflowRunsStore interface {
 		Create(ctx context.Context, workflowRun WorkflowRun) (string, error)
-		GetWorkflowRuns(ctx context.Context) ([]WorkflowRunInfo, error)
+		GetWorkflowRuns(ctx context.Context) ([]TsWorkflowRunInfo, error)
 		GetById(ctx context.Context, id string) ([]WorkflowRunSteps, error)
 		UpdateStatus(ctx context.Context, id string, status string) error
 		UpdateDuration(ctx context.Context, id string, duration float64) error
@@ -30,20 +30,20 @@ type Storage struct {
 	}
 	JobRunsStore interface {
 		Create(ctx context.Context, jobRun JobRun) (string, error)
-		GetByWorkflowId(ctx context.Context, workflowId string) ([]Jobs, error)
+		GetByWorkflowId(ctx context.Context, workflowId string) ([]TsJobs, error)
 		UpdateStatus(ctx context.Context, id string, status string) error
 	}
 	StepRunsStore interface {
 		Create(ctx context.Context, stepRun StepRun) (string, error)
-		GetByJobId(ctx context.Context, jobId string) ([]Steps, error)
+		GetByJobId(ctx context.Context, jobId string) ([]TsSteps, error)
 		UpdateStatus(ctx context.Context, id string, status string) error
-		CreateCommandOutput(ctx context.Context, cmd CommandOutput) (string, error)
-		GetByStepID(ctx context.Context, stepID string) ([]CommandOutput, error)
+		CreateCommandOutput(ctx context.Context, cmd TsCommandOutput) (string, error)
+		GetByStepID(ctx context.Context, stepID string) ([]TsCommandOutput, error)
 	}
 	UsersStore interface {
 		Create(ctx context.Context, user User, githubInfo GitHubUserInfo) (*User, error)
 		GetByExternalId(ctx context.Context, id string) (*User, error)
-		GetById(ctx context.Context, id string) (*UserDisplay, error)
+		GetById(ctx context.Context, id string) (*TsUserDisplay, error)
 	}
 }
 

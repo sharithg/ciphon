@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { toast } from "../use-toast";
-import { Node } from "@/@types/api";
+import { TNode } from "@/types/api";
 import { API_URL } from "./constants";
 import { fetchData } from ".";
 import { withJwt } from "../user-auth";
@@ -62,7 +62,7 @@ export const useAddNewNode = (input: { onSuccess?: () => Promise<void> }) => {
 export const useGetNodes = () => {
   return useQuery({
     queryKey: ["nodes"],
-    queryFn: () => fetchData<Node[]>(`${API_URL}/nodes`),
+    queryFn: () => fetchData<TNode[]>(`${API_URL}/nodes`),
     refetchInterval: 3000,
   });
 };
