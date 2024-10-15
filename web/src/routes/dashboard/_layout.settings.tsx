@@ -69,7 +69,7 @@ function Settings() {
     }
   }, [sendMessage, connectionStatus]);
 
-  const nodesWithStatus = nodes.data?.data ?? [];
+  const nodesWithStatus = nodes.data ?? [];
 
   function onSubmit(values: z.infer<typeof nodeSchema>) {
     mutation.mutate(values);

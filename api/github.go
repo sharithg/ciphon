@@ -10,7 +10,7 @@ import (
 	"github.com/sharithg/siphon/internal/storage"
 )
 
-type GithubRepoResponse struct {
+type TsGithubRepoResponse struct {
 	ID          int64  `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -18,7 +18,7 @@ type GithubRepoResponse struct {
 	Owner       string `json:"owner"`
 }
 
-type ConnectRepoRequest struct {
+type TsConnectRepoRequest struct {
 	Name  string `json:"name"`
 	Owner string `json:"owner"`
 }
@@ -45,14 +45,14 @@ func (app *Application) getNewReposHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	var repoList []GithubRepoResponse
+	var repoList []TsGithubRepoResponse
 	for _, repo := range repos.Repositories {
 
 		if _, exists := existingRepoSet[repo.GetID()]; exists {
 			continue
 		}
 
-		repoList = append(repoList, GithubRepoResponse{
+		repoList = append(repoList, TsGithubRepoResponse{
 			ID:          repo.GetID(),
 			Name:        repo.GetName(),
 			Description: repo.GetDescription(),
@@ -82,7 +82,7 @@ func (app *Application) getReposHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (app *Application) connectRepoHandler(w http.ResponseWriter, r *http.Request) {
-	var payload ConnectRepoRequest
+	var payload TsConnectRepoRequest
 	if err := readJSON(w, r, &payload); err != nil {
 		app.badRequestResponse(w, r, err)
 		return

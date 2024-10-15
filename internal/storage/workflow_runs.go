@@ -20,7 +20,7 @@ type WorkflowRunStore struct {
 	pool *pgxpool.Pool
 }
 
-type WorkflowRunInfo struct {
+type TsWorkflowRunInfo struct {
 	CommitSHA    string    `db:"commit_sha" json:"commitSha"`
 	RepoName     string    `db:"repo_name" json:"repoName"`
 	WorkflowName string    `db:"repo_name" json:"workflowName"`
@@ -61,8 +61,8 @@ func (s *WorkflowRunStore) Create(ctx context.Context, workflowRun WorkflowRun) 
 	return id, nil
 }
 
-func (s *WorkflowRunStore) GetWorkflowRuns(ctx context.Context) ([]WorkflowRunInfo, error) {
-	var repos []WorkflowRunInfo
+func (s *WorkflowRunStore) GetWorkflowRuns(ctx context.Context) ([]TsWorkflowRunInfo, error) {
+	var repos []TsWorkflowRunInfo
 
 	query := `
 		select pr.commit_sha,
@@ -88,7 +88,7 @@ func (s *WorkflowRunStore) GetWorkflowRuns(ctx context.Context) ([]WorkflowRunIn
 	defer rows.Close()
 
 	for rows.Next() {
-		var repo WorkflowRunInfo
+		var repo TsWorkflowRunInfo
 		err := rows.Scan(&repo.CommitSHA, &repo.RepoName, &repo.PipelineID, &repo.WorkflowID, &repo.Status, &repo.WorkflowName, &repo.Branch, &repo.CreatedAt, &repo.Duration)
 		if err != nil {
 			return nil, err

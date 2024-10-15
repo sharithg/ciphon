@@ -286,7 +286,7 @@ func (wm *WorkflowManager) getSteps(steps []storage.WorkflowRunSteps, node stora
 
 func (wm *WorkflowManager) saveCommandOutput(ctx context.Context, stepId string, streamType, output string) error {
 
-	cmd := storage.CommandOutput{
+	cmd := storage.TsCommandOutput{
 		StepID: stepId,
 		Type:   &streamType,
 		Stdout: output,

@@ -21,7 +21,7 @@ type StepRun struct {
 	UpdatedAt time.Time `db:"updated_at"`
 }
 
-type Steps struct {
+type TsSteps struct {
 	Type    string  `json:"type" db:"type"`
 	ID      string  `json:"id" db:"id"`
 	Name    string  `json:"name" db:"name"`
@@ -51,8 +51,8 @@ func (s *StepRunStore) Create(ctx context.Context, st StepRun) (string, error) {
 	return id, nil
 }
 
-func (s *StepRunStore) GetByJobId(ctx context.Context, jobId string) ([]Steps, error) {
-	var steps []Steps
+func (s *StepRunStore) GetByJobId(ctx context.Context, jobId string) ([]TsSteps, error) {
+	var steps []TsSteps
 
 	query := `
 	SELECT type, s.id, s.name, s.command, s.status
@@ -69,7 +69,7 @@ func (s *StepRunStore) GetByJobId(ctx context.Context, jobId string) ([]Steps, e
 	defer rows.Close()
 
 	for rows.Next() {
-		var step Steps
+		var step TsSteps
 		err := rows.Scan(&step.Type, &step.ID, &step.Name, &step.Command, &step.Status)
 		if err != nil {
 			return nil, err
@@ -98,7 +98,7 @@ func (s *StepRunStore) UpdateStatus(ctx context.Context, id, status string) erro
 	return nil
 }
 
-type CommandOutput struct {
+type TsCommandOutput struct {
 	ID        string    `json:"id" db:"id"`
 	StepID    string    `json:"step_id" db:"step_id"`
 	Stdout    string    `json:"stdout" db:"stdout"`
@@ -106,7 +106,7 @@ type CommandOutput struct {
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
 
-func (s *StepRunStore) CreateCommandOutput(ctx context.Context, cmd CommandOutput) (string, error) {
+func (s *StepRunStore) CreateCommandOutput(ctx context.Context, cmd TsCommandOutput) (string, error) {
 	var id string
 	query := `
 	INSERT INTO command_output (step_id, stdout, type)
@@ -120,8 +120,8 @@ func (s *StepRunStore) CreateCommandOutput(ctx context.Context, cmd CommandOutpu
 	return id, nil
 }
 
-func (s *StepRunStore) GetByStepID(ctx context.Context, stepID string) ([]CommandOutput, error) {
-	var outputs []CommandOutput
+func (s *StepRunStore) GetByStepID(ctx context.Context, stepID string) ([]TsCommandOutput, error) {
+	var outputs []TsCommandOutput
 
 	query := `
 	SELECT id, step_id, stdout, type, created_at
@@ -136,7 +136,7 @@ func (s *StepRunStore) GetByStepID(ctx context.Context, stepID string) ([]Comman
 	defer rows.Close()
 
 	for rows.Next() {
-		var output CommandOutput
+		var output TsCommandOutput
 		err := rows.Scan(&output.ID, &output.StepID, &output.Stdout, &output.Type, &output.CreatedAt)
 		if err != nil {
 			return nil, err

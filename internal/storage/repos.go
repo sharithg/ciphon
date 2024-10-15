@@ -17,7 +17,7 @@ type CreateRepo struct {
 	RawData       string
 }
 
-type ListRepo struct {
+type TsListRepo struct {
 	RepoID        int64     `json:"repoId"`
 	Name          string    `json:"name"`
 	Owner         string    `json:"owner"`
@@ -48,8 +48,8 @@ func (s *RepoStore) Create(ctx context.Context, repo CreateRepo) (string, error)
 	return id, nil
 }
 
-func (s *RepoStore) All(ctx context.Context) ([]ListRepo, error) {
-	var repos []ListRepo
+func (s *RepoStore) All(ctx context.Context) ([]TsListRepo, error) {
+	var repos []TsListRepo
 
 	query := `
 	SELECT repo_id, name, owner, description, url, repo_created_at
@@ -63,7 +63,7 @@ func (s *RepoStore) All(ctx context.Context) ([]ListRepo, error) {
 	defer rows.Close()
 
 	for rows.Next() {
-		var repo ListRepo
+		var repo TsListRepo
 		err := rows.Scan(&repo.RepoID, &repo.Name, &repo.Owner, &repo.Description, &repo.URL, &repo.RepoCreatedAt)
 		if err != nil {
 			return nil, err
