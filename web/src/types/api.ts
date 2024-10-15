@@ -37,7 +37,7 @@ export type TListRepo = {
   owner: string;
   description: string;
   url: string;
-  repoCreatedAt: unknown;
+  repoCreatedAt: string;
 };
 
 export type TSteps = {
@@ -53,7 +53,7 @@ export type TCommandOutput = {
   step_id: string;
   stdout: string;
   type: string;
-  created_at: unknown;
+  created_at: string;
 };
 
 export type TUserDisplay = {
@@ -71,7 +71,7 @@ export type TWorkflowRunInfo = {
   workflowId: string;
   status: string | null;
   branch: string;
-  createdAt: unknown;
+  createdAt: string;
   duration: number | null;
 };
 

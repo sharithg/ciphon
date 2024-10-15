@@ -38,31 +38,35 @@ func NewGoToTs(files []string, prefix, tsPrefix, tsFile string) *Parser {
 	}
 }
 
-func (p *Parser) ToTs() {
+func (p *Parser) ToTs() error {
 	fset := token.NewFileSet()
 
-	tsDefs := ""
+	var tsDefs strings.Builder
 
 	for _, file := range p.Files {
 		ts, err := p.parseFile(fset, file)
 		if err != nil {
-			log.Fatalf("error parsing file %s: %s", file, err)
+			return fmt.Errorf("error parsing file %s: %s", file, err)
 		}
 
 		for _, tsType := range ts {
-			tsDefs += fmt.Sprintf("%s\n", generateTsStruct(tsType))
+			fmt.Fprintf(&tsDefs, "%s\n", generateTsStruct(tsType))
 		}
 	}
 
 	f, err := os.Create(p.TsFile)
+
 	if err != nil {
-		log.Fatalln("error creating ts file: ", err)
+		return fmt.Errorf("error creating ts file: %s", err)
 	}
-	_, err = f.WriteString(tsDefs)
+	defer f.Close()
+
+	_, err = f.WriteString(tsDefs.String())
 	if err != nil {
-		log.Fatalln("error writing generated ts: ", err)
-		f.Close()
+		return fmt.Errorf("error writing generated ts: %s", err)
 	}
+
+	return nil
 }
 
 func (p *Parser) parseFile(fset *token.FileSet, name string) ([]TsType, error) {
@@ -208,6 +212,11 @@ func goToTSType(goType string) string {
 	if goType == "interface{}" {
 		return "any"
 	}
+	if goType == "time.Time" {
+		return "string"
+	}
+
+	log.Printf("warning: unhandled Go type '%s', defaulting to 'unknown'", goType)
 
 	return "unknown"
 }

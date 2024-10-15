@@ -75,7 +75,7 @@ export const useGetCommandOutput = (
   return useQuery({
     queryKey: [`workflows/${workflowId}/jobs/${jobId}/steps/${stepId}/output`],
     queryFn: () =>
-      fetchData<WithData<TCommandOutput[]>>(
+      fetchData<TCommandOutput[]>(
         `${API_URL}/workflows/${workflowId}/jobs/${jobId}/steps/${stepId}/output`
       ),
     refetchInterval: 500,

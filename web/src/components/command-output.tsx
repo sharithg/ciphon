@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useGetCommandOutput } from "@/hooks/react-query/use-workflows";
 
 const CommandOutput = (input: {
@@ -13,7 +13,7 @@ const CommandOutput = (input: {
     input.stepId
   );
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const outputs = useMemo(() => data?.data ?? [], [data?.data]);
+  const outputs = useMemo(() => data ?? [], [data]);
 
   useEffect(() => {
     // Scroll to the bottom of the container when outputs change

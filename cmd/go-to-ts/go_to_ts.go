@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"os"
 	"path/filepath"
@@ -16,25 +17,30 @@ func RunGoToTs(inputFiles, outputFile, prefix, tsPrefix string) {
 
 	pattens, err := doublestar.Glob(fsys, pattern)
 
+	if err != nil {
+		log.Fatalf("error reading input files: %s", err)
+	}
+
 	var files []string
 
 	for _, f := range pattens {
 		files = append(files, filepath.Join(basepath, f))
 	}
 
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if err != nil {
-		log.Fatalf("error reading input files: %s", err)
-	}
-
 	parser := tools.NewGoToTs(files, prefix, tsPrefix, outputFile)
 
-	parser.ToTs()
+	if err = parser.ToTs(); err != nil {
+		log.Fatalf("error converting to ts: %s\n", err)
+	}
 }
 
 func main() {
-	RunGoToTs("./**/*.go", "web/src/types/api.ts", "Ts", "T")
+
+	inputFiles := flag.String("input", "./**/*.go", "Input file pattern")
+	outputFile := flag.String("output", "web/src/types/api.ts", "Output file path")
+	prefix := flag.String("prefix", "Ts", "Prefix for generated types")
+	tsPrefix := flag.String("tsPrefix", "T", "TypeScript prefix")
+	flag.Parse()
+
+	RunGoToTs(*inputFiles, *outputFile, *prefix, *tsPrefix)
 }
