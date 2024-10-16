@@ -2,15 +2,14 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 
 	"github.com/google/go-github/v65/github"
-	"github.com/sharithg/siphon/internal/storage"
+	"github.com/sharithg/siphon/internal/repository"
 )
 
-type TsGithubRepoResponse struct {
+type GithubRepoResponse struct {
 	ID          int64  `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -18,7 +17,7 @@ type TsGithubRepoResponse struct {
 	Owner       string `json:"owner"`
 }
 
-type TsConnectRepoRequest struct {
+type ConnectRepoRequest struct {
 	Name  string `json:"name"`
 	Owner string `json:"owner"`
 }
@@ -33,7 +32,7 @@ func (app *Application) getNewReposHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	existingRepos, err := app.Store.Repos.All(r.Context())
+	existingRepos, err := app.Repository.GetAllRepos(r.Context())
 
 	existingRepoSet := make(map[int64]struct{})
 	for _, repo := range existingRepos {
@@ -45,14 +44,14 @@ func (app *Application) getNewReposHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	var repoList []TsGithubRepoResponse
+	var repoList []GithubRepoResponse
 	for _, repo := range repos.Repositories {
 
 		if _, exists := existingRepoSet[repo.GetID()]; exists {
 			continue
 		}
 
-		repoList = append(repoList, TsGithubRepoResponse{
+		repoList = append(repoList, GithubRepoResponse{
 			ID:          repo.GetID(),
 			Name:        repo.GetName(),
 			Description: repo.GetDescription(),
@@ -68,7 +67,7 @@ func (app *Application) getNewReposHandler(w http.ResponseWriter, r *http.Reques
 }
 
 func (app *Application) getReposHandler(w http.ResponseWriter, r *http.Request) {
-	repos, err := app.Store.Repos.All(r.Context())
+	repos, err := app.Repository.GetAllRepos(r.Context())
 
 	if err != nil {
 		app.internalServerError(w, r, err)
@@ -82,7 +81,7 @@ func (app *Application) getReposHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (app *Application) connectRepoHandler(w http.ResponseWriter, r *http.Request) {
-	var payload TsConnectRepoRequest
+	var payload ConnectRepoRequest
 	if err := readJSON(w, r, &payload); err != nil {
 		app.badRequestResponse(w, r, err)
 		return
@@ -100,23 +99,24 @@ func (app *Application) connectRepoHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	b, err := json.Marshal(repo)
-	if err != nil {
-		app.internalServerError(w, r, err)
+	repoUrl := repo.HTMLURL
+
+	if repoUrl == nil {
+		app.badRequestResponse(w, r, errors.New("repo must have url"))
 		return
 	}
 
-	newRepo := storage.CreateRepo{
+	newRepo := repository.CreateRepoParams{
 		RepoID:        *repo.ID,
 		Name:          *repo.Name,
 		Owner:         payload.Owner,
-		Description:   *repo.Description,
-		URL:           *repo.HTMLURL,
+		Description:   repo.Description,
+		Url:           *repoUrl,
 		RepoCreatedAt: repo.CreatedAt.Time,
-		RawData:       string(b),
+		RawData:       *repo,
 	}
 
-	id, err := app.Store.Repos.Create(r.Context(), newRepo)
+	id, err := app.Repository.CreateRepo(r.Context(), newRepo)
 
 	if err != nil {
 		app.internalServerError(w, r, err)

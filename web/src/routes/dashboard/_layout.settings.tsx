@@ -60,8 +60,6 @@ function Settings() {
   });
   const { connectionStatus, sendMessage } = useWebsocket();
 
-  console.log({ connectionStatus });
-
   useEffect(() => {
     if (connectionStatus === "Open") {
       console.log("sending message");

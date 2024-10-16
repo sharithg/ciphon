@@ -8,7 +8,6 @@ import (
 	"github.com/sharithg/siphon/internal/config"
 	"github.com/sharithg/siphon/internal/docker"
 	"github.com/sharithg/siphon/internal/runner"
-	storage "github.com/sharithg/siphon/internal/storage/kv"
 )
 
 var upgrader = websocket.Upgrader{
@@ -20,7 +19,6 @@ var upgrader = websocket.Upgrader{
 
 type Application struct {
 	Config      Config
-	Store       *storage.KvStorage
 	Docker      *docker.Docker
 	AgentConfig *config.AgentConfig
 	Runner      *runner.Runner

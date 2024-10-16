@@ -1,5 +1,5 @@
 import { atom } from "jotai";
-import { TJobs, TWorkflowRunInfo } from "@/types/api";
+import { TGetJobsByWorkflowIdRow, TGetWorkflowRunsRow } from "@/types/api";
 
-export const workflows = atom<TWorkflowRunInfo[] | null>(null);
-export const jobs = atom<TJobs[] | null>(null);
+export const workflows = atom<TGetWorkflowRunsRow[] | null>(null);
+export const jobs = atom<TGetJobsByWorkflowIdRow[] | null>(null);

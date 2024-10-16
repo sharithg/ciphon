@@ -61,7 +61,7 @@ export const useAddNewNode = (input: { onSuccess?: () => Promise<void> }) => {
 
 export const useGetNodes = () => {
   return useQuery({
-    queryKey: ["nodes"],
+    queryKey: ["nodes-data"],
     queryFn: () => fetchData<TNode[]>(`${API_URL}/nodes`),
     refetchInterval: 3000,
   });

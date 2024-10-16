@@ -1,28 +1,40 @@
 package api
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
+
+	"github.com/google/uuid"
 )
 
 func (app *Application) getUser(w http.ResponseWriter, r *http.Request) {
-	userId, ok := app.getUserFromContext(r)
+	userIdStr, ok := app.getUserFromContext(r)
 
 	if !ok {
 		app.badRequestResponse(w, r, errors.New("user not found in request"))
 		return
 	}
 
-	user, err := app.Store.UsersStore.GetById(r.Context(), userId)
+	userId, err := uuid.Parse(userIdStr)
 
 	if err != nil {
-		app.internalServerError(w, r, err)
+		app.badRequestResponse(w, r, errors.New("invalid user id"))
 		return
 	}
 
-	if user == nil {
-		app.badRequestResponse(w, r, fmt.Errorf("user not found for id: %s", userId))
+	user, err := app.Repository.GetUserById(r.Context(), userId)
+
+	fmt.Println(user, err)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			app.badRequestResponse(w, r, fmt.Errorf("user not found for id: %s", userId))
+			return
+		}
+
+		app.internalServerError(w, r, err)
 		return
 	}
 

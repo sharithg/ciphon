@@ -5,15 +5,15 @@ import { fetchData } from ".";
 import { withJwt } from "../user-auth";
 import { apiClient } from "../../axios";
 import {
-  TConnectRepoRequest,
+  TGetAllReposRow,
   TGithubRepoResponse,
-  TListRepo,
+  TConnectRepoRequest,
 } from "../../types/api";
 
 export const useGetRepos = () => {
   return useQuery({
     queryKey: ["repos"],
-    queryFn: () => fetchData<TListRepo[]>(`${API_URL}/repos`),
+    queryFn: () => fetchData<TGetAllReposRow[]>(`${API_URL}/repos`),
   });
 };
 

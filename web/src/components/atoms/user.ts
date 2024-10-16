@@ -1,4 +1,4 @@
 import { atomWithStorage } from "jotai/utils";
-import { User } from "../../hooks/user-auth";
+import { TGetUserByIdRow } from "../../types/api";
 
-export const userAtom = atomWithStorage<User | null>("user", null);
+export const userAtom = atomWithStorage<TGetUserByIdRow | null>("user", null);

@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"sort"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/sharithg/siphon/internal/docker"
-	storage "github.com/sharithg/siphon/internal/storage/kv"
 	"github.com/sharithg/siphon/internal/utils"
 )
 
@@ -17,10 +17,10 @@ type BaseEvent struct {
 }
 
 type Command struct {
-	Id      string `json:"id"`
-	Cmd     string `json:"cmd"`
-	Order   int    `json:"order"`
-	WorkDir string `json:"workDir"`
+	Id      uuid.UUID `json:"id"`
+	Cmd     string    `json:"cmd"`
+	Order   int32     `json:"order"`
+	WorkDir string    `json:"workDir"`
 }
 
 type Commands struct {
@@ -37,13 +37,11 @@ type CommandOutput struct {
 }
 
 type Runner struct {
-	Store  *storage.KvStorage
 	Docker *docker.Docker
 }
 
-func New(store *storage.KvStorage, docker *docker.Docker) *Runner {
+func New(docker *docker.Docker) *Runner {
 	return &Runner{
-		Store:  store,
 		Docker: docker,
 	}
 }
@@ -53,14 +51,6 @@ func (r *Runner) RunCommands(conn *websocket.Conn, e Commands) error {
 
 	ctx := context.Background()
 	runId := utils.RandStringBytes(10)
-
-	err := r.Store.Containers.Set(runId, "running")
-
-	if err != nil {
-		slog.Error("error saving container state", "err", err)
-		sendError(conn, err)
-		return nil
-	}
 
 	outputChan := make(chan CommandOutput)
 
@@ -117,11 +107,11 @@ func (r *Runner) RunCommands(conn *websocket.Conn, e Commands) error {
 
 			running := CommandOutput{
 				CmdType: "running",
-				Id:      cmd.Id,
+				Id:      cmd.Id.String(),
 			}
 
-			stdoutCmdFunc := stdoutHandler(outputChan, "cmd", cmd.Id)
-			stderrCmdFunc := stderrHandler(outputChan, "cmd", cmd.Id)
+			stdoutCmdFunc := stdoutHandler(outputChan, "cmd", cmd.Id.String())
+			stderrCmdFunc := stderrHandler(outputChan, "cmd", cmd.Id.String())
 
 			workDir := "/"
 
@@ -141,7 +131,7 @@ func (r *Runner) RunCommands(conn *websocket.Conn, e Commands) error {
 			}
 			doneCmd := CommandOutput{
 				CmdType: "doneCmd",
-				Id:      cmd.Id,
+				Id:      cmd.Id.String(),
 			}
 			if err := sendOutput(conn, doneCmd); err != nil {
 				slog.Error("error sending output over websocket", "err", err)
@@ -156,14 +146,6 @@ func (r *Runner) RunCommands(conn *websocket.Conn, e Commands) error {
 			slog.Error("error sending output over websocket", "err", err)
 			return err
 		}
-	}
-
-	err = r.Store.Containers.Set(runId, "complete")
-
-	if err != nil {
-		slog.Error("error saving container state", "err", err)
-		sendError(conn, err)
-		return nil
 	}
 
 	return nil

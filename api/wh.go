@@ -14,7 +14,7 @@ import (
 	"github.com/palantir/go-githubapp/githubapp"
 	"github.com/pkg/errors"
 	"github.com/sharithg/siphon/internal/parser"
-	"github.com/sharithg/siphon/internal/storage"
+	"github.com/sharithg/siphon/internal/repository"
 )
 
 type GhWebhookHandler struct {
@@ -112,12 +112,12 @@ func (h *GhWebhookHandler) handlePushEvent(event github.PushEvent, configStr str
 	}
 
 	for name := range config.Workflows {
-		workflowRun := storage.WorkflowRun{
+		workflowRun := repository.CreateWorkflowRunParams{
 			Name:          name,
 			PipelineRunID: pipelineId,
 		}
 
-		workflowId, err := h.app.Store.WorkflowRunsStore.Create(ctx, workflowRun)
+		workflowId, err := h.app.Repository.CreateWorkflowRun(ctx, workflowRun)
 
 		if err != nil {
 			slog.Error("error creating workflow", "error", err)
@@ -131,15 +131,15 @@ func (h *GhWebhookHandler) handlePushEvent(event github.PushEvent, configStr str
 			return
 		}
 
-		var jobRuns []storage.JobRun
+		var jobRuns []repository.CreateJobRunParams
 		for _, job := range jobs {
 			id := uuid.New()
-			jobRun := storage.JobRun{
-				ID:         id.String(),
+			jobRun := repository.CreateJobRunParams{
+				ID:         id,
 				WorkflowID: workflowId,
 				Name:       job.Name,
 				Docker:     job.Docker,
-				Node:       job.Node,
+				Node:       &job.Node,
 			}
 			jobRuns = append(jobRuns, jobRun)
 		}
@@ -149,7 +149,7 @@ func (h *GhWebhookHandler) handlePushEvent(event github.PushEvent, configStr str
 
 			reqIds := getRequiredJobs(requires, jobRuns)
 
-			var jobRun storage.JobRun
+			var jobRun repository.CreateJobRunParams
 
 			for _, run := range jobRuns {
 				if run.Name == job.Name {
@@ -159,7 +159,7 @@ func (h *GhWebhookHandler) handlePushEvent(event github.PushEvent, configStr str
 
 			jobRun.Requires = reqIds
 
-			jobId, err := h.app.Store.JobRunsStore.Create(ctx, jobRun)
+			jobId, err := h.app.Repository.CreateJobRun(ctx, jobRun)
 
 			if err != nil {
 				slog.Error("error creating job", "error", err)
@@ -171,7 +171,7 @@ func (h *GhWebhookHandler) handlePushEvent(event github.PushEvent, configStr str
 	}
 }
 
-func (h *GhWebhookHandler) createSteps(ctx context.Context, steps []parser.StepWrapper, jobId string) {
+func (h *GhWebhookHandler) createSteps(ctx context.Context, steps []parser.StepWrapper, jobId uuid.UUID) {
 	for idx, step := range steps {
 		var restoreCache []string
 		var paths []string
@@ -183,17 +183,18 @@ func (h *GhWebhookHandler) createSteps(ctx context.Context, steps []parser.StepW
 			paths = step.Step.SaveCache.Paths
 		}
 
-		stepRun := storage.StepRun{
+		stepOrder := int32(idx)
+		stepRun := repository.CreateStepRunParams{
 			JobID:     jobId,
 			Type:      step.Step.Type,
-			Name:      step.Step.Name,
-			Command:   step.Step.Command,
+			Name:      &step.Step.Name,
+			Command:   &step.Step.Command,
 			Keys:      restoreCache,
 			Paths:     paths,
-			StepOrder: idx,
+			StepOrder: stepOrder,
 		}
 
-		_, err := h.app.Store.StepRunsStore.Create(ctx, stepRun)
+		_, err := h.app.Repository.CreateStepRun(ctx, stepRun)
 
 		if err != nil {
 			slog.Error("error creating step", "error", err)
@@ -202,8 +203,8 @@ func (h *GhWebhookHandler) createSteps(ctx context.Context, steps []parser.StepW
 	}
 }
 
-func getRequiredJobs(requires []string, jobRuns []storage.JobRun) []string {
-	var reqIds []string
+func getRequiredJobs(requires []string, jobRuns []repository.CreateJobRunParams) []uuid.UUID {
+	var reqIds []uuid.UUID
 	for _, req := range requires {
 		for _, jobReq := range jobRuns {
 			if jobReq.Name == req {
@@ -214,26 +215,35 @@ func getRequiredJobs(requires []string, jobRuns []storage.JobRun) []string {
 	return reqIds
 }
 
-func (h *GhWebhookHandler) createPipelineRun(ctx context.Context, event github.PushEvent, configStr string) (string, error) {
+func (h *GhWebhookHandler) createPipelineRun(ctx context.Context, event github.PushEvent, configStr string) (uuid.UUID, error) {
 
 	headCommit := event.HeadCommit
 
 	if headCommit == nil {
-		return "", errors.New("error parsing event, HeadCommit is nil")
+		return uuid.Nil, errors.New("error parsing event, HeadCommit is nil")
+	}
+	if headCommit.ID == nil {
+		return uuid.Nil, errors.New("headCommit.ID is nil")
+	}
+	if event.Ref == nil {
+		return uuid.Nil, errors.New("event.Ref is nil")
+	}
+	if event.Repo == nil || event.Repo.ID == nil {
+		return uuid.Nil, errors.New("event.Repo.ID is nil")
 	}
 
-	pipelineRun := storage.PipelineRun{
-		CommitSHA:  *headCommit.ID,
+	pipelineRun := repository.CreatePipelineRunParams{
+		CommitSha:  *headCommit.ID,
 		ConfigFile: configStr,
 		Branch:     strings.Replace(*event.Ref, "refs/heads/", "", -1),
 		Status:     "received",
-		RepoId:     *event.Repo.ID,
+		RepoID:     *event.Repo.ID,
 	}
 
-	pipelineId, err := h.app.Store.PipelineRunsStore.Create(ctx, pipelineRun)
+	pipelineId, err := h.app.Repository.CreatePipelineRun(ctx, pipelineRun)
 
 	if err != nil {
-		return "", fmt.Errorf("error creating pipeline run: %s", err)
+		return uuid.Nil, fmt.Errorf("error creating pipeline run: %s", err)
 	}
 
 	return pipelineId, nil

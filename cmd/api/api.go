@@ -4,15 +4,15 @@ import (
 	"log"
 	"log/slog"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
 	"github.com/sharithg/siphon/api"
 	"github.com/sharithg/siphon/internal/auth"
 	"github.com/sharithg/siphon/internal/db"
 	"github.com/sharithg/siphon/internal/env"
 	"github.com/sharithg/siphon/internal/repo"
-	"github.com/sharithg/siphon/internal/storage"
+	"github.com/sharithg/siphon/internal/repository"
 	"github.com/sharithg/siphon/internal/storage/minio"
 )
 
@@ -71,7 +71,7 @@ func main() {
 		log.Fatal("error configuring github client", err)
 	}
 
-	store := storage.NewStorage(pool)
+	repository := repository.New(pool)
 	minioStorage := minio.NewStorage(minioClient)
 
 	if err = minioStorage.SetupBuckets(); err != nil {
@@ -82,11 +82,12 @@ func main() {
 
 	app := &api.Application{
 		Config:       cfg,
-		Store:        store,
+		Repository:   repository,
 		MinioStorage: minioStorage,
 		Github:       ghClient,
 		Cache:        redisClient,
 		Auth:         auth,
+		Pool:         pool,
 	}
 
 	mux := app.Mount()

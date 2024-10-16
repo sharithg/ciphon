@@ -2,15 +2,17 @@ package api
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"github.com/sharithg/siphon/internal/auth"
-	"github.com/sharithg/siphon/internal/storage"
+	"github.com/sharithg/siphon/internal/repository"
 )
 
 type RefreshToken struct {
@@ -93,14 +95,14 @@ func (app *Application) loggedinHandler(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	user, err := app.createUserIfNotExists(r.Context(), githubData)
+	userId, err := app.createUserIfNotExists(r.Context(), githubData)
 
 	if err != nil {
 		app.internalServerError(w, r, err)
 		return
 	}
 
-	tokens, err := app.Auth.CreateToken(user.ID)
+	tokens, err := app.Auth.CreateToken(userId.String())
 
 	if err != nil {
 		app.internalServerError(w, r, err)
@@ -110,7 +112,7 @@ func (app *Application) loggedinHandler(w http.ResponseWriter, r *http.Request, 
 	app.jsonResponse(w, http.StatusOK, tokens)
 }
 
-func (app *Application) createUserIfNotExists(ctx context.Context, ghResp []byte) (*storage.User, error) {
+func (app *Application) createUserIfNotExists(ctx context.Context, ghResp []byte) (*uuid.UUID, error) {
 	gu, err := auth.LoadGithubUser(ghResp)
 
 	if err != nil {
@@ -123,32 +125,37 @@ func (app *Application) createUserIfNotExists(ctx context.Context, ghResp []byte
 
 	externalId := strconv.Itoa(gu.ID)
 
-	user := storage.User{
+	authType := "github"
+	user := repository.CreateUserParams{
 		Username:   gu.Login,
 		Email:      gu.Email,
-		ExternalId: externalId,
-		AuthType:   "github",
+		ExternalID: externalId,
+		AuthType:   &authType,
 	}
 
-	gh := storage.GitHubUserInfo{
-		Data: *gu,
+	existingUser, err := app.Repository.GetUserByExternalId(ctx, externalId)
+
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
 	}
 
-	existingUser, err := app.Store.UsersStore.GetByExternalId(ctx, externalId)
+	if err == nil {
+		return &existingUser.ID, nil
+	}
 
+	newUserId, err := app.Repository.CreateUser(ctx, user)
 	if err != nil {
 		return nil, err
 	}
 
-	if existingUser != nil {
-		return existingUser, nil
+	gh := repository.CreateGitHubUserInfoParams{
+		Data:   *gu,
+		UserID: newUserId,
 	}
 
-	newUser, err := app.Store.UsersStore.Create(ctx, user, gh)
-
-	if err != nil {
+	if err = app.Repository.CreateGitHubUserInfo(ctx, gh); err != nil {
 		return nil, err
 	}
 
-	return newUser, nil
+	return &newUserId, nil
 }

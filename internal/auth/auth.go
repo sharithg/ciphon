@@ -11,7 +11,7 @@ type Auth struct {
 	SecretKey []byte
 }
 
-type TsTokenPair struct {
+type TokenPair struct {
 	AccessToken  string `json:"accessToken"`
 	RefreshToken string `json:"refreshToken"`
 }
@@ -25,7 +25,7 @@ func New(s string) *Auth {
 	return &Auth{SecretKey: []byte(s)}
 }
 
-func (a *Auth) CreateToken(userId string) (*TsTokenPair, error) {
+func (a *Auth) CreateToken(userId string) (*TokenPair, error) {
 	at, err := a.generateTokenWithUser(userId, time.Minute*15)
 	if err != nil {
 		return nil, fmt.Errorf("error signing access token: %v", err)
@@ -36,7 +36,7 @@ func (a *Auth) CreateToken(userId string) (*TsTokenPair, error) {
 		return nil, fmt.Errorf("error signing refresh token: %v", err)
 	}
 
-	return &TsTokenPair{AccessToken: at, RefreshToken: rt}, nil
+	return &TokenPair{AccessToken: at, RefreshToken: rt}, nil
 }
 
 func (a *Auth) VerifyToken(tokenStr string) (*Claims, error) {
@@ -59,7 +59,7 @@ func (a *Auth) VerifyToken(tokenStr string) (*Claims, error) {
 	return claims, nil
 }
 
-func (a *Auth) RefreshToken(oldRefreshToken string) (*TsTokenPair, error) {
+func (a *Auth) RefreshToken(oldRefreshToken string) (*TokenPair, error) {
 	refreshToken, err := a.parseAndVerifyToken(oldRefreshToken, a.SecretKey)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing refresh token: %v", err)
@@ -86,7 +86,7 @@ func (a *Auth) RefreshToken(oldRefreshToken string) (*TsTokenPair, error) {
 		return nil, fmt.Errorf("error signing new refresh token: %v", err)
 	}
 
-	return &TsTokenPair{AccessToken: at, RefreshToken: rt}, nil
+	return &TokenPair{AccessToken: at, RefreshToken: rt}, nil
 }
 
 func (a *Auth) generateTokenWithUser(userId string, duration time.Duration) (string, error) {

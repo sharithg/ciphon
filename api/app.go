@@ -13,12 +13,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"github.com/go-redis/redis/v8"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/palantir/go-githubapp/githubapp"
+	"github.com/redis/go-redis/v9"
 	"github.com/sharithg/siphon/internal/auth"
 	"github.com/sharithg/siphon/internal/env"
 	"github.com/sharithg/siphon/internal/repo"
-	"github.com/sharithg/siphon/internal/storage"
+	"github.com/sharithg/siphon/internal/repository"
 	"github.com/sharithg/siphon/internal/storage/minio"
 )
 
@@ -48,12 +49,13 @@ type CacheConfig struct {
 
 type Application struct {
 	Config       Config
-	Store        *storage.Storage
+	Repository   *repository.Queries
 	MinioStorage *minio.Storage
 	Github       *repo.Github
 	Wh           *GhWebhookHandler
 	Cache        *redis.Client
 	Auth         *auth.Auth
+	Pool         *pgxpool.Pool
 }
 
 func (app *Application) Mount() http.Handler {
