@@ -2,8 +2,8 @@ package api
 
 import (
 	"context"
+	"database/sql"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -15,10 +15,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/sharithg/siphon/internal/remote"
-	"github.com/sharithg/siphon/internal/storage"
+	"github.com/sharithg/siphon/internal/repository"
 )
 
-type TsNode struct {
+type Node struct {
 	Id     string `json:"id"`
 	Host   string `json:"host"`
 	Name   string `json:"name"`
@@ -27,15 +27,27 @@ type TsNode struct {
 	Status string `json:"status"`
 }
 
-func (app *Application) installTools(ctx context.Context, nodeId, token string, sshConn *remote.SshConn) error {
+func (app *Application) installTools(ctx context.Context, nodeId uuid.UUID, token string, sshConn *remote.SshConn) error {
 	err := sshConn.InstallTools(token)
 	if err != nil {
 		log.Printf("Failed to install tools for node %s: %v", nodeId, err)
-		app.Store.Nodes.UpdateStatus(ctx, nodeId, "error")
+		err = app.Repository.UpdateNodeStatus(ctx, repository.UpdateNodeStatusParams{
+			Status: "error",
+			ID:     nodeId,
+		})
+		if err != nil {
+			return err
+		}
 		return err
 	}
 	log.Printf("Successfully installed tools for node %s", nodeId)
-	app.Store.Nodes.UpdateStatus(ctx, nodeId, "healthy")
+	err = app.Repository.UpdateNodeStatus(ctx, repository.UpdateNodeStatusParams{
+		Status: "healthy",
+		ID:     nodeId,
+	})
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -100,16 +112,16 @@ func (app *Application) createNodeHandler(w http.ResponseWriter, r *http.Request
 
 	token := uuid.New().String()
 
-	n := storage.Node{
+	n := repository.CreateNodeParams{
 		Host:       host,
 		Name:       name,
 		PemFile:    pemFileEncoded,
-		User:       user,
-		Port:       port,
+		Username:   user,
+		Port:       int32(port),
 		AgentToken: token,
 	}
 
-	id, err := app.Store.Nodes.Create(r.Context(), n)
+	id, err := app.Repository.CreateNode(r.Context(), n)
 	if err != nil {
 		log.Printf("Error adding node to database: %v", err)
 		http.Error(w, "Error creating new node", http.StatusBadRequest)
@@ -131,7 +143,14 @@ func (app *Application) createNodeHandler(w http.ResponseWriter, r *http.Request
 func (app *Application) installToolsForNode(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "nodeId")
 
-	node, err := app.Store.Nodes.GetById(r.Context(), idParam)
+	id, err := uuid.Parse(idParam)
+
+	if err != nil {
+		app.badRequestResponse(w, r, errors.New("invalid id"))
+		return
+	}
+
+	node, err := app.Repository.GetNodeById(r.Context(), id)
 
 	if err != nil {
 		app.internalServerError(w, r, err)
@@ -144,32 +163,31 @@ func (app *Application) installToolsForNode(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	sshConn, err := remote.New(node.Host, node.User, pemBytes, true)
+	sshConn, err := remote.New(node.Host, node.Username, pemBytes, true)
 
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			app.notFoundResponse(w, r, errors.New("node not found"))
+			return
+		}
 		app.internalServerError(w, r, err)
 		return
 	}
 
-	if node == nil {
-		app.notFoundResponse(w, r, errors.New("node not found"))
-		return
-	}
-
-	go app.installTools(r.Context(), node.Id, node.AgentToken, sshConn)
+	go app.installTools(r.Context(), node.ID, node.AgentToken, sshConn)
 
 }
 
 func (app *Application) getNodesHandler(w http.ResponseWriter, r *http.Request) {
-	nodes, err := app.Store.Nodes.All(r.Context())
+	nodes, err := app.Repository.GetAllNodes(r.Context())
 
-	var nodesList []TsNode
+	var nodesList []Node
 	for _, node := range nodes {
-		nodesList = append(nodesList, TsNode{
-			Id:     node.Id,
+		nodesList = append(nodesList, Node{
+			Id:     node.ID.String(),
 			Host:   node.Host,
 			Name:   node.Name,
-			User:   node.User,
+			User:   node.Username,
 			Status: node.Status,
 		})
 	}
@@ -180,7 +198,5 @@ func (app *Application) getNodesHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(nodesList)
+	app.jsonResponse(w, http.StatusOK, nodesList)
 }

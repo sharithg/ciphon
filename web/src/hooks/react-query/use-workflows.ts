@@ -1,15 +1,15 @@
 import { API_URL } from "./constants";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { fetchData, WithData } from ".";
+import { fetchData } from ".";
 import { useAtom } from "jotai";
 import { jobs, workflows } from "../../components/atoms/workflows";
 import { withJwt } from "../user-auth";
 import { apiClient } from "../../axios";
 import {
-  TCommandOutput,
-  TJobs,
-  TSteps,
-  TWorkflowRunInfo,
+  TGetCommandOutputsByStepIdRow,
+  TGetJobsByWorkflowIdRow,
+  TGetStepsByJobIdRow,
+  TGetWorkflowRunsRow,
 } from "../../types/api";
 
 export const useGetWorkflows = () => {
@@ -17,10 +17,9 @@ export const useGetWorkflows = () => {
 
   return useQuery({
     queryKey: ["workflows"],
-    queryFn: () =>
-      fetchData<WithData<TWorkflowRunInfo[]>>(`${API_URL}/workflows`),
+    queryFn: () => fetchData<TGetWorkflowRunsRow[]>(`${API_URL}/workflows`),
     onSuccess: (data) => {
-      setWorkflows(data.data);
+      setWorkflows(data);
     },
   });
 };
@@ -48,7 +47,9 @@ export const useGetJobs = (workflowId: string) => {
   return useQuery({
     queryKey: [`workflows/${workflowId}/jobs`],
     queryFn: () =>
-      fetchData<TJobs[]>(`${API_URL}/workflows/${workflowId}/jobs`),
+      fetchData<TGetJobsByWorkflowIdRow[]>(
+        `${API_URL}/workflows/${workflowId}/jobs`
+      ),
     onSuccess: (data) => {
       setJobs(data);
     },
@@ -57,9 +58,9 @@ export const useGetJobs = (workflowId: string) => {
 
 export const useGetSteps = (workflowId: string, jobId: string) => {
   return useQuery({
-    queryKey: [`workflows/${workflowId}/jobs`],
+    queryKey: [`workflows/${workflowId}/jobs/${jobId}/steps`],
     queryFn: () =>
-      fetchData<WithData<TSteps[]>>(
+      fetchData<TGetStepsByJobIdRow[]>(
         `${API_URL}/workflows/${workflowId}/jobs/${jobId}/steps`
       ),
     refetchInterval: 500,
@@ -75,7 +76,7 @@ export const useGetCommandOutput = (
   return useQuery({
     queryKey: [`workflows/${workflowId}/jobs/${jobId}/steps/${stepId}/output`],
     queryFn: () =>
-      fetchData<TCommandOutput[]>(
+      fetchData<TGetCommandOutputsByStepIdRow[]>(
         `${API_URL}/workflows/${workflowId}/jobs/${jobId}/steps/${stepId}/output`
       ),
     refetchInterval: 500,

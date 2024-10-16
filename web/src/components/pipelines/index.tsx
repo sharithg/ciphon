@@ -154,7 +154,7 @@ const Pipelines = () => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {(data?.data ?? []).map((run) => (
+          {(data ?? []).map((run) => (
             <TableRow key={run.workflowId} className="h-8">
               <TableCell className="p-2 text-sm font-medium">
                 {run.repoName}

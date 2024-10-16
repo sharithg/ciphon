@@ -1,9 +1,9 @@
 import { API_URL } from "./react-query/constants";
-import { WithData } from "./react-query";
+import { fetchData, WithData } from "./react-query";
 import { useAtom } from "jotai";
 import { userAtom } from "../components/atoms/user";
 import { apiClient } from "../axios";
-import { TTokenPair, TUserDisplay } from "../types/api";
+import { TGetUserByIdRow, TTokenPair } from "../types/api";
 
 function isTokenExpired(token: string) {
   const base64Url = token.split(".")[1];
@@ -30,19 +30,15 @@ export const withJwt = () => {
 };
 
 const getToken = async (code: string) => {
-  const tok = await apiClient.get<WithData<TTokenPair>>(
+  const tok = await fetchData<TTokenPair>(
     `${API_URL}/auth/login/github/callback?code=${code}`
   );
-  return tok.data.data;
+  return tok;
 };
 
 const getUser = async () => {
-  const tok = await apiClient.get<WithData<TUserDisplay>>(`${API_URL}/user`, {
-    headers: {
-      ...withJwt(),
-    },
-  });
-  return tok.data.data;
+  const tok = await fetchData<TGetUserByIdRow>(`${API_URL}/user`);
+  return tok;
 };
 
 export const refreshAccessToken = async (token: string) => {

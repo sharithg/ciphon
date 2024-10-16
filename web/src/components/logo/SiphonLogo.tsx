@@ -1,5 +1,3 @@
-import React from "react";
-
 const SiphonLogo = (input: { scaleDown: number }) => {
   return (
     <svg

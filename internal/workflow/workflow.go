@@ -12,33 +12,34 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/sharithg/siphon/internal/remote"
+	"github.com/sharithg/siphon/internal/repository"
 	"github.com/sharithg/siphon/internal/runner"
-	"github.com/sharithg/siphon/internal/storage"
 )
 
 type WorkflowManager struct {
-	store          *storage.Storage
+	store          *repository.Queries
 	githubClientId string
 	cache          *redis.Client
 }
 
 type WorkflowRun struct {
-	Id     string `json:"id"`
-	Status string `json:"status"`
-	Type   string `json:"type"`
+	Id     uuid.UUID `json:"id"`
+	Status string    `json:"status"`
+	Type   string    `json:"type"`
 }
 
 func (w WorkflowRun) MarshalBinary() ([]byte, error) {
 	return json.Marshal(w)
 }
 
-func New(s *storage.Storage, c string, r *redis.Client) *WorkflowManager {
+func New(s *repository.Queries, c string, r *redis.Client) *WorkflowManager {
 	return &WorkflowManager{store: s, githubClientId: c, cache: r}
 }
 
-func (wm *WorkflowManager) TriggerWorkflow(ctx context.Context, workflowId string) error {
+func (wm *WorkflowManager) TriggerWorkflow(ctx context.Context, workflowId uuid.UUID) error {
 	workflows, err := wm.getWorkflowsByID(ctx, workflowId)
 
 	if err != nil {
@@ -47,7 +48,7 @@ func (wm *WorkflowManager) TriggerWorkflow(ctx context.Context, workflowId strin
 
 	jobMap := wm.partitionWorkflowsByJob(workflows)
 
-	nodes, err := wm.store.Nodes.All(ctx)
+	nodes, err := wm.store.GetAllNodes(ctx)
 
 	if err != nil {
 		return err
@@ -58,7 +59,7 @@ func (wm *WorkflowManager) TriggerWorkflow(ctx context.Context, workflowId strin
 	for jobId, steps := range jobMap {
 		wg.Add(1)
 
-		go func(jobId string, steps []storage.WorkflowRunSteps) {
+		go func(jobId uuid.UUID, steps []repository.GetWorkflowRunByIdRow) {
 			defer wg.Done()
 
 			fmt.Printf("Processing job: %s\n", jobId)
@@ -87,31 +88,44 @@ func (wm *WorkflowManager) TriggerWorkflow(ctx context.Context, workflowId strin
 	return nil
 }
 
-func (wm *WorkflowManager) updateJobStatus(ctx context.Context, jobId, status string) error {
+func (wm *WorkflowManager) updateJobStatus(ctx context.Context, jobId uuid.UUID, status string) error {
 	eventPayload := WorkflowRun{Id: jobId, Status: status, Type: "job"}
 	if err := wm.cache.Publish(ctx, "job_run", eventPayload).Err(); err != nil {
 		return err
 	}
-	if err := wm.store.JobRunsStore.UpdateStatus(ctx, jobId, status); err != nil {
+	if err := wm.store.UpdateJobRunStatus(ctx, repository.UpdateJobRunStatusParams{
+		ID:     jobId,
+		Status: &status,
+	}); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (wm *WorkflowManager) updateStepStatus(ctx context.Context, stepId, status string) error {
-	eventPayload := WorkflowRun{Id: stepId, Status: status, Type: "step"}
+func (wm *WorkflowManager) updateStepStatus(ctx context.Context, stepId string, status string) error {
+
+	id, err := uuid.Parse(stepId)
+
+	if err != nil {
+		return err
+	}
+
+	eventPayload := WorkflowRun{Id: id, Status: status, Type: "step"}
 	if err := wm.cache.Publish(ctx, "step_run", eventPayload).Err(); err != nil {
 		return err
 	}
 
-	if err := wm.store.StepRunsStore.UpdateStatus(ctx, stepId, status); err != nil {
+	if err := wm.store.UpdateStepRunStatus(ctx, repository.UpdateStepRunStatusParams{
+		Status: &status,
+		ID:     id,
+	}); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (wm *WorkflowManager) getWorkflowsByID(ctx context.Context, workflowId string) ([]storage.WorkflowRunSteps, error) {
-	workflows, err := wm.store.WorkflowRunsStore.GetById(ctx, workflowId)
+func (wm *WorkflowManager) getWorkflowsByID(ctx context.Context, workflowId uuid.UUID) ([]repository.GetWorkflowRunByIdRow, error) {
+	workflows, err := wm.store.GetWorkflowRunById(ctx, workflowId)
 	if err != nil {
 		return nil, err
 	}
@@ -123,15 +137,15 @@ func (wm *WorkflowManager) getWorkflowsByID(ctx context.Context, workflowId stri
 	return workflows, nil
 }
 
-func (wm *WorkflowManager) partitionWorkflowsByJob(workflows []storage.WorkflowRunSteps) map[string][]storage.WorkflowRunSteps {
-	jobMap := make(map[string][]storage.WorkflowRunSteps)
+func (wm *WorkflowManager) partitionWorkflowsByJob(workflows []repository.GetWorkflowRunByIdRow) map[uuid.UUID][]repository.GetWorkflowRunByIdRow {
+	jobMap := make(map[uuid.UUID][]repository.GetWorkflowRunByIdRow)
 	for _, workflow := range workflows {
 		jobMap[workflow.JobID] = append(jobMap[workflow.JobID], workflow)
 	}
 	return jobMap
 }
 
-func (wm *WorkflowManager) executeJob(ctx context.Context, steps []storage.WorkflowRunSteps, node storage.Node) error {
+func (wm *WorkflowManager) executeJob(ctx context.Context, steps []repository.GetWorkflowRunByIdRow, node repository.GetAllNodesRow) error {
 
 	headers := http.Header{}
 	headers.Set("X-Ciphon-Auth", node.AgentToken)
@@ -224,7 +238,7 @@ func (wm *WorkflowManager) executeJob(ctx context.Context, steps []storage.Workf
 
 }
 
-func (wm *WorkflowManager) getSteps(steps []storage.WorkflowRunSteps, node storage.Node) (*runner.Commands, error) {
+func (wm *WorkflowManager) getSteps(steps []repository.GetWorkflowRunByIdRow, node repository.GetAllNodesRow) (*runner.Commands, error) {
 	var commands []runner.Command
 	workDir := "/"
 
@@ -264,12 +278,15 @@ func (wm *WorkflowManager) getSteps(steps []storage.WorkflowRunSteps, node stora
 				WorkDir: workDir,
 			})
 		default:
-			commands = append(commands, runner.Command{
-				Id:      step.StepID,
-				Cmd:     step.Command,
-				Order:   step.StepOrder,
-				WorkDir: workDir,
-			})
+			cmd := step.Command
+			if cmd != nil {
+				commands = append(commands, runner.Command{
+					Id:      step.StepID,
+					Cmd:     *cmd,
+					Order:   step.StepOrder,
+					WorkDir: workDir,
+				})
+			}
 		}
 	}
 
@@ -286,12 +303,18 @@ func (wm *WorkflowManager) getSteps(steps []storage.WorkflowRunSteps, node stora
 
 func (wm *WorkflowManager) saveCommandOutput(ctx context.Context, stepId string, streamType, output string) error {
 
-	cmd := storage.TsCommandOutput{
-		StepID: stepId,
-		Type:   &streamType,
+	id, err := uuid.Parse(stepId)
+
+	if err != nil {
+		return err
+	}
+
+	cmd := repository.CreateCommandOutputParams{
+		StepID: id,
+		Type:   streamType,
 		Stdout: output,
 	}
-	_, err := wm.store.StepRunsStore.CreateCommandOutput(ctx, cmd)
+	_, err = wm.store.CreateCommandOutput(ctx, cmd)
 
 	if err != nil {
 		return err

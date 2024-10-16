@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import Image from "next/image";
 
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -9,12 +8,11 @@ export default function PlaceholderContent() {
       <CardContent className="p-6">
         <div className="flex justify-center items-center min-h-[calc(100vh-56px-64px-20px-24px-56px-48px)]">
           <div className="flex flex-col relative">
-            <Image
+            <img
               src="/placeholder.png"
               alt="Placeholder Image"
               width={500}
               height={500}
-              priority
             />
             <div className="absolute -bottom-8 right-0">
               <Link

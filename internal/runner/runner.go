@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"sort"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/sharithg/siphon/internal/docker"
 	storage "github.com/sharithg/siphon/internal/storage/kv"
@@ -17,10 +18,10 @@ type BaseEvent struct {
 }
 
 type Command struct {
-	Id      string `json:"id"`
-	Cmd     string `json:"cmd"`
-	Order   int    `json:"order"`
-	WorkDir string `json:"workDir"`
+	Id      uuid.UUID `json:"id"`
+	Cmd     string    `json:"cmd"`
+	Order   int32     `json:"order"`
+	WorkDir string    `json:"workDir"`
 }
 
 type Commands struct {
@@ -117,11 +118,11 @@ func (r *Runner) RunCommands(conn *websocket.Conn, e Commands) error {
 
 			running := CommandOutput{
 				CmdType: "running",
-				Id:      cmd.Id,
+				Id:      cmd.Id.String(),
 			}
 
-			stdoutCmdFunc := stdoutHandler(outputChan, "cmd", cmd.Id)
-			stderrCmdFunc := stderrHandler(outputChan, "cmd", cmd.Id)
+			stdoutCmdFunc := stdoutHandler(outputChan, "cmd", cmd.Id.String())
+			stderrCmdFunc := stderrHandler(outputChan, "cmd", cmd.Id.String())
 
 			workDir := "/"
 
@@ -141,7 +142,7 @@ func (r *Runner) RunCommands(conn *websocket.Conn, e Commands) error {
 			}
 			doneCmd := CommandOutput{
 				CmdType: "doneCmd",
-				Id:      cmd.Id,
+				Id:      cmd.Id.String(),
 			}
 			if err := sendOutput(conn, doneCmd); err != nil {
 				slog.Error("error sending output over websocket", "err", err)
