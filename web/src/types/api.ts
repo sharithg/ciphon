@@ -4,7 +4,7 @@ export type TNode = {
   id: string;
   host: string;
   name: string;
-  user: string;
+  username: string;
   port: number;
   status: string;
 };

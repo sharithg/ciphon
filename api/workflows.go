@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/sharithg/siphon/internal/repository"
 	"github.com/sharithg/siphon/internal/workflow"
@@ -28,11 +27,10 @@ func (app *Application) getWorkflows(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *Application) getJobs(w http.ResponseWriter, r *http.Request) {
-	workflowId := chi.URLParam(r, "workflowId")
 
-	id, err := uuid.Parse(workflowId)
+	id, ok := app.parseUUIDParam(w, r, "workflowId")
 
-	if err != nil {
+	if !ok {
 		app.badRequestResponse(w, r, errors.New("invalid workflow id"))
 		return
 	}
@@ -51,10 +49,9 @@ func (app *Application) getJobs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *Application) getSteps(w http.ResponseWriter, r *http.Request) {
-	jobId := chi.URLParam(r, "jobId")
-	id, err := uuid.Parse(jobId)
+	id, ok := app.parseUUIDParam(w, r, "jobId")
 
-	if err != nil {
+	if !ok {
 		app.badRequestResponse(w, r, errors.New("invalid job id"))
 		return
 	}
@@ -73,11 +70,10 @@ func (app *Application) getSteps(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *Application) getStepOutput(w http.ResponseWriter, r *http.Request) {
-	stepId := chi.URLParam(r, "stepId")
 
-	id, err := uuid.Parse(stepId)
+	id, ok := app.parseUUIDParam(w, r, "jobId")
 
-	if err != nil {
+	if !ok {
 		app.badRequestResponse(w, r, errors.New("invalid step id"))
 		return
 	}
@@ -96,11 +92,9 @@ func (app *Application) getStepOutput(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *Application) triggerWorkflow(w http.ResponseWriter, r *http.Request) {
-	workflowId := chi.URLParam(r, "workflowId")
+	id, ok := app.parseUUIDParam(w, r, "jobId")
 
-	id, err := uuid.Parse(workflowId)
-
-	if err != nil {
+	if !ok {
 		app.badRequestResponse(w, r, errors.New("invalid workflow id"))
 		return
 	}
@@ -113,23 +107,28 @@ func (app *Application) triggerWorkflow(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := app.updateWorkflowStatus(r.Context(), id, "running"); err != nil {
-		slog.Error("error updating workflow status: %w", "err", err)
+		slog.Error("error updating workflow status", "err", err)
+		return
 	}
 
 	go func() {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
 		start := time.Now()
 
 		err := wm.TriggerWorkflow(ctx, id)
 		if err != nil {
 			if err := app.updateWorkflowStatusWithDuration(ctx, id, "failed", start); err != nil {
-				slog.Error("error updating workflow status: %w", "err", err)
+				slog.Error("error updating workflow status", "err", err)
+			}
+
+		} else {
+			if err := app.updateWorkflowStatusWithDuration(ctx, id, "success", start); err != nil {
+				slog.Error("error updating workflow status", "err", err)
 			}
 		}
 
-		if err := app.updateWorkflowStatusWithDuration(ctx, id, "success", start); err != nil {
-			slog.Error("error updating workflow status: %w", "err", err)
-		}
 	}()
 }
 

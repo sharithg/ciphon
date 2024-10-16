@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"database/sql"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -11,32 +10,35 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/sharithg/siphon/internal/remote"
 	"github.com/sharithg/siphon/internal/repository"
 )
 
 type Node struct {
-	Id     string `json:"id"`
-	Host   string `json:"host"`
-	Name   string `json:"name"`
-	User   string `json:"user"`
-	Port   int    `json:"port"`
-	Status string `json:"status"`
+	Id       string `json:"id"`
+	Host     string `json:"host"`
+	Name     string `json:"name"`
+	Username string `json:"username"`
+	Port     int    `json:"port"`
+	Status   string `json:"status"`
 }
 
-func (app *Application) installTools(ctx context.Context, nodeId uuid.UUID, token string, sshConn *remote.SshConn) error {
+func (app *Application) installTools(nodeId uuid.UUID, token string, sshConn *remote.SshConn) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
 	err := sshConn.InstallTools(token)
 	if err != nil {
 		log.Printf("Failed to install tools for node %s: %v", nodeId, err)
-		err = app.Repository.UpdateNodeStatus(ctx, repository.UpdateNodeStatusParams{
+		updateErr := app.Repository.UpdateNodeStatus(ctx, repository.UpdateNodeStatusParams{
 			Status: "error",
 			ID:     nodeId,
 		})
-		if err != nil {
-			return err
+		if updateErr != nil {
+			return updateErr
 		}
 		return err
 	}
@@ -128,7 +130,7 @@ func (app *Application) createNodeHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	err = app.installTools(r.Context(), id, token, sshConn)
+	err = app.installTools(id, token, sshConn)
 
 	if err != nil {
 		app.badRequestResponse(w, r, errors.New("error instaling tools in node"))
@@ -141,11 +143,10 @@ func (app *Application) createNodeHandler(w http.ResponseWriter, r *http.Request
 }
 
 func (app *Application) installToolsForNode(w http.ResponseWriter, r *http.Request) {
-	idParam := chi.URLParam(r, "nodeId")
 
-	id, err := uuid.Parse(idParam)
+	id, ok := app.parseUUIDParam(w, r, "nodeId")
 
-	if err != nil {
+	if !ok {
 		app.badRequestResponse(w, r, errors.New("invalid id"))
 		return
 	}
@@ -166,15 +167,11 @@ func (app *Application) installToolsForNode(w http.ResponseWriter, r *http.Reque
 	sshConn, err := remote.New(node.Host, node.Username, pemBytes, true)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			app.notFoundResponse(w, r, errors.New("node not found"))
-			return
-		}
 		app.internalServerError(w, r, err)
 		return
 	}
 
-	go app.installTools(r.Context(), node.ID, node.AgentToken, sshConn)
+	go app.installTools(node.ID, node.AgentToken, sshConn)
 
 }
 
@@ -184,11 +181,11 @@ func (app *Application) getNodesHandler(w http.ResponseWriter, r *http.Request) 
 	var nodesList []Node
 	for _, node := range nodes {
 		nodesList = append(nodesList, Node{
-			Id:     node.ID.String(),
-			Host:   node.Host,
-			Name:   node.Name,
-			User:   node.Username,
-			Status: node.Status,
+			Id:       node.ID.String(),
+			Host:     node.Host,
+			Name:     node.Name,
+			Username: node.Username,
+			Status:   node.Status,
 		})
 	}
 

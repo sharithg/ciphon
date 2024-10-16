@@ -4,9 +4,9 @@ import (
 	"log"
 	"log/slog"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
 	"github.com/sharithg/siphon/api"
 	"github.com/sharithg/siphon/internal/auth"
 	"github.com/sharithg/siphon/internal/db"

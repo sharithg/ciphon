@@ -10,7 +10,7 @@ import (
 	"github.com/sharithg/siphon/internal/tools"
 )
 
-func RunGoToTs(inputFiles, outputFile, prefix, tsPrefix string) {
+func RunGoToTs(outputFile, tsPrefix string) {
 
 	parser := tools.NewGoToTs(tsPrefix, outputFile)
 
@@ -35,11 +35,9 @@ func RunGoToTs(inputFiles, outputFile, prefix, tsPrefix string) {
 
 func main() {
 
-	inputFiles := flag.String("input", "./**/*.go", "Input file pattern")
 	outputFile := flag.String("output", "web/src/types/api.ts", "Output file path")
-	prefix := flag.String("prefix", "Ts", "Prefix for generated types")
 	tsPrefix := flag.String("tsPrefix", "T", "TypeScript prefix")
 	flag.Parse()
 
-	RunGoToTs(*inputFiles, *outputFile, *prefix, *tsPrefix)
+	RunGoToTs(*outputFile, *tsPrefix)
 }

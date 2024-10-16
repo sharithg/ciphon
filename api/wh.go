@@ -222,6 +222,15 @@ func (h *GhWebhookHandler) createPipelineRun(ctx context.Context, event github.P
 	if headCommit == nil {
 		return uuid.Nil, errors.New("error parsing event, HeadCommit is nil")
 	}
+	if headCommit.ID == nil {
+		return uuid.Nil, errors.New("headCommit.ID is nil")
+	}
+	if event.Ref == nil {
+		return uuid.Nil, errors.New("event.Ref is nil")
+	}
+	if event.Repo == nil || event.Repo.ID == nil {
+		return uuid.Nil, errors.New("event.Repo.ID is nil")
+	}
 
 	pipelineRun := repository.CreatePipelineRunParams{
 		CommitSha:  *headCommit.ID,

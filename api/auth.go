@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"github.com/sharithg/siphon/internal/auth"
 	"github.com/sharithg/siphon/internal/repository"
 )
@@ -134,8 +134,6 @@ func (app *Application) createUserIfNotExists(ctx context.Context, ghResp []byte
 	}
 
 	existingUser, err := app.Repository.GetUserByExternalId(ctx, externalId)
-
-	fmt.Println(existingUser, err)
 
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err

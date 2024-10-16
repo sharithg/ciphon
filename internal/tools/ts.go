@@ -69,11 +69,11 @@ func (p *Parser) parseStruct(s interface{}) TsType {
 			FieldType: goToTSType(field.Type.String()),
 		}
 
-		if jsonTag, nullable := parseJSONTag(string(field.Tag)); jsonTag != "" {
+		if jsonTag, nullable := parseJSONTag(field.Tag); jsonTag != "" {
 			tsField.Name = jsonTag
 			tsField.Nullable = nullable
 		} else {
-			log.Printf("field %s in struct %s does not have a JSON struct field\n", tsField.Name, tsType.Name)
+			log.Printf("field %s in struct %s does not have a JSON tag\n", tsField.Name, tsType.Name)
 		}
 
 		tsType.Fields = append(tsType.Fields, tsField)
@@ -88,12 +88,12 @@ func generateTsStruct(tsType TsType) string {
 
 	for _, field := range tsType.Fields {
 		fieldType := field.FieldType
+		fieldName := field.Name
 		if field.Nullable {
-			fieldType += " | null"
+			fieldName += "?"
 		}
-		fmt.Fprintf(&sb, "  %s: %s;\n", field.Name, fieldType)
+		fmt.Fprintf(&sb, "  %s: %s;\n", fieldName, fieldType)
 	}
-
 	sb.WriteString("};\n")
 	return sb.String()
 }
@@ -128,8 +128,7 @@ func goToTSType(goType string) string {
 	}
 }
 
-func parseJSONTag(tag string) (string, bool) {
-	tag = strings.Replace(tag, "`", "", -1)
+func parseJSONTag(tag reflect.StructTag) (string, bool) {
 	structTag := reflect.StructTag(tag)
 	jsonTag := structTag.Get("json")
 

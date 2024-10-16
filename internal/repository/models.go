@@ -7,30 +7,31 @@ package repository
 import (
 	"time"
 
+	github "github.com/google/go-github/v65/github"
 	"github.com/google/uuid"
 	auth "github.com/sharithg/siphon/internal/auth"
 )
 
 type CommandOutput struct {
-	ID        uuid.UUID `json:"id"`
-	StepID    uuid.UUID `json:"stepId"`
-	Stdout    string    `json:"stdout"`
-	Type      string    `json:"type"`
-	StepOrder *int32    `json:"stepOrder"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID          uuid.UUID `json:"id"`
+	StepID      uuid.UUID `json:"stepId"`
+	Stdout      string    `json:"stdout"`
+	Type        string    `json:"type"`
+	OutputOrder *int32    `json:"outputOrder"`
+	CreatedAt   time.Time `json:"createdAt"`
 }
 
 type GithubRepo struct {
-	ID            uuid.UUID `json:"id"`
-	RepoID        int64     `json:"repoId"`
-	Name          string    `json:"name"`
-	Owner         string    `json:"owner"`
-	Description   *string   `json:"description"`
-	Url           string    `json:"url"`
-	RepoCreatedAt time.Time `json:"repoCreatedAt"`
-	RawData       []byte    `json:"rawData"`
-	CreatedAt     time.Time `json:"createdAt"`
-	UpdatedAt     time.Time `json:"updatedAt"`
+	ID            uuid.UUID         `json:"id"`
+	RepoID        int64             `json:"repoId"`
+	Name          string            `json:"name"`
+	Owner         string            `json:"owner"`
+	Description   *string           `json:"description"`
+	Url           string            `json:"url"`
+	RepoCreatedAt time.Time         `json:"repoCreatedAt"`
+	RawData       github.Repository `json:"rawData"`
+	CreatedAt     time.Time         `json:"createdAt"`
+	UpdatedAt     time.Time         `json:"updatedAt"`
 }
 
 type GithubUserInfo struct {
