@@ -135,8 +135,6 @@ func (app *Application) createUserIfNotExists(ctx context.Context, ghResp []byte
 
 	existingUser, err := app.Repository.GetUserByExternalId(ctx, externalId)
 
-	fmt.Println(existingUser, err)
-
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}

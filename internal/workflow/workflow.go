@@ -202,33 +202,32 @@ func (wm *WorkflowManager) executeJob(ctx context.Context, steps []repository.Ge
 				return err
 			}
 
-			fmt.Printf("Received message: %s\n", string(msg))
+			fmt.Printf("[cmd] %s", string(msg))
 
-			switch output.CmdType {
-			case "done":
+			if output.CmdType == "done" {
 				slog.Info("received done message, exiting")
 				return nil
-			case "error":
+			} else if output.CmdType == "error" && output.IsUserCmd {
 				if err := wm.updateStepStatus(ctx, output.Id, "failed"); err != nil {
-					slog.Error("error updating step status", "err", err)
+					slog.Error("error updating step status", "err", err, "type", output.CmdType)
 				}
-			case "running":
+			} else if output.CmdType == "running" && output.IsUserCmd {
 				if err := wm.updateStepStatus(ctx, output.Id, "running"); err != nil {
-					slog.Error("error updating step status", "err", err)
+					slog.Error("error updating step status", "err", err, "type", output.CmdType)
 				}
-			case "doneCmd":
+			} else if output.CmdType == "doneCmd" && output.IsUserCmd {
 				if output.Id != "" {
 					if err := wm.updateStepStatus(ctx, output.Id, "success"); err != nil {
-						slog.Error("error updating step status", "err", err)
+						slog.Error("error updating step status", "err", err, "type", output.CmdType)
 						return nil
 					}
 				}
-			case "cmd":
+			} else if output.CmdType == "cmd" {
 				if err = wm.saveCommandOutput(ctx, output.Id, output.OutputType, output.Output); err != nil {
 					slog.Error("error updating step status", "err", err)
 					return nil
 				}
-			default:
+			} else {
 				slog.Warn("received unknown command type", "CmdType", output.CmdType)
 			}
 
