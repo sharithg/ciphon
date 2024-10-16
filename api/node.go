@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"database/sql"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -168,10 +167,6 @@ func (app *Application) installToolsForNode(w http.ResponseWriter, r *http.Reque
 	sshConn, err := remote.New(node.Host, node.Username, pemBytes, true)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			app.notFoundResponse(w, r, errors.New("node not found"))
-			return
-		}
 		app.internalServerError(w, r, err)
 		return
 	}
