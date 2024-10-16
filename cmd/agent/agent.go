@@ -12,7 +12,6 @@ import (
 	"github.com/sharithg/siphon/internal/docker"
 	"github.com/sharithg/siphon/internal/env"
 	"github.com/sharithg/siphon/internal/runner"
-	storage "github.com/sharithg/siphon/internal/storage/kv"
 )
 
 func main() {
@@ -26,8 +25,6 @@ func main() {
 		Addr: env.GetString("AGENT_ADDR", false, ":8888"),
 		Env:  env.GetString("GOENV", false, "local"),
 	}
-
-	store := storage.NewKvStorage()
 
 	dock, err := docker.New()
 
@@ -49,11 +46,10 @@ func main() {
 		log.Fatalf("error loading agent config: %s", err)
 	}
 
-	run := runner.New(store, dock)
+	run := runner.New(dock)
 
 	app := &agent.Application{
 		Config:      cfg,
-		Store:       store,
 		Docker:      dock,
 		AgentConfig: agentConfig,
 		Runner:      run,

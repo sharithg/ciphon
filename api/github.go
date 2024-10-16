@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -100,12 +99,6 @@ func (app *Application) connectRepoHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	b, err := json.Marshal(repo)
-	if err != nil {
-		app.internalServerError(w, r, err)
-		return
-	}
-
 	repoUrl := repo.HTMLURL
 
 	if repoUrl == nil {
@@ -120,7 +113,7 @@ func (app *Application) connectRepoHandler(w http.ResponseWriter, r *http.Reques
 		Description:   repo.Description,
 		Url:           *repoUrl,
 		RepoCreatedAt: repo.CreatedAt.Time,
-		RawData:       b,
+		RawData:       *repo,
 	}
 
 	id, err := app.Repository.CreateRepo(r.Context(), newRepo)

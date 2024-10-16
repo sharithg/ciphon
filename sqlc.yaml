@@ -36,3 +36,8 @@ sql:
               import: "github.com/sharithg/siphon/internal/auth"
               package: "auth"
               type: "GitHubUser"
+          - column: "github_repos.raw_data"
+            go_type:
+              import: "github.com/google/go-github/v65/github"
+              package: "github"
+              type: "Repository"

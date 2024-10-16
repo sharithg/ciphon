@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/sharithg/siphon/internal/docker"
-	storage "github.com/sharithg/siphon/internal/storage/kv"
 	"github.com/sharithg/siphon/internal/utils"
 )
 
@@ -39,13 +38,11 @@ type CommandOutput struct {
 }
 
 type Runner struct {
-	Store  *storage.KvStorage
 	Docker *docker.Docker
 }
 
-func New(store *storage.KvStorage, docker *docker.Docker) *Runner {
+func New(docker *docker.Docker) *Runner {
 	return &Runner{
-		Store:  store,
 		Docker: docker,
 	}
 }
@@ -55,14 +52,6 @@ func (r *Runner) RunCommands(conn *websocket.Conn, e Commands) error {
 
 	ctx := context.Background()
 	runId := utils.RandStringBytes(10)
-
-	err := r.Store.Containers.Set(runId, "running")
-
-	if err != nil {
-		slog.Error("error saving container state", "err", err)
-		sendError(conn, err)
-		return nil
-	}
 
 	outputChan := make(chan CommandOutput)
 
@@ -162,14 +151,6 @@ func (r *Runner) RunCommands(conn *websocket.Conn, e Commands) error {
 			slog.Error("error sending output over websocket", "err", err)
 			return err
 		}
-	}
-
-	err = r.Store.Containers.Set(runId, "complete")
-
-	if err != nil {
-		slog.Error("error saving container state", "err", err)
-		sendError(conn, err)
-		return nil
 	}
 
 	return nil

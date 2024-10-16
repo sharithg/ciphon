@@ -9,6 +9,7 @@ import (
 	"context"
 	"time"
 
+	github "github.com/google/go-github/v65/github"
 	"github.com/google/uuid"
 	auth "github.com/sharithg/siphon/internal/auth"
 )
@@ -161,13 +162,13 @@ RETURNING id
 `
 
 type CreateRepoParams struct {
-	RepoID        int64     `json:"repoId"`
-	Name          string    `json:"name"`
-	Owner         string    `json:"owner"`
-	Description   *string   `json:"description"`
-	Url           string    `json:"url"`
-	RepoCreatedAt time.Time `json:"repoCreatedAt"`
-	RawData       []byte    `json:"rawData"`
+	RepoID        int64             `json:"repoId"`
+	Name          string            `json:"name"`
+	Owner         string            `json:"owner"`
+	Description   *string           `json:"description"`
+	Url           string            `json:"url"`
+	RepoCreatedAt time.Time         `json:"repoCreatedAt"`
+	RawData       github.Repository `json:"rawData"`
 }
 
 func (q *Queries) CreateRepo(ctx context.Context, arg CreateRepoParams) (uuid.UUID, error) {
