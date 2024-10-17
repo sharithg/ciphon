@@ -43,7 +43,7 @@ export type TGetWorkflowRunsRow = {
   duration: number;
 };
 
-export type TGetWorkflowRunByIdRow = {
+export type TGetJobsAndStepsByWorkflowIdRow = {
   jobId: string;
   stepId: string;
   command: string;
@@ -56,6 +56,7 @@ export type TGetWorkflowRunByIdRow = {
   commitSha: string;
   branch: string;
   docker: string;
+  requires: string[];
 };
 
 export type TGetStepsByJobIdRow = {
@@ -78,6 +79,7 @@ export type TGetJobsByWorkflowIdRow = {
   id: string;
   name: string;
   status: string;
+  requires: string[];
 };
 
 export type TTokenPair = {
@@ -90,5 +92,10 @@ export type TGetUserByIdRow = {
   username: string;
   email: string;
   avatarUrl: string;
+};
+
+export type TEdge = {
+  source: string;
+  dest: string;
 };
 

@@ -26,8 +26,6 @@ func (app *Application) getUser(w http.ResponseWriter, r *http.Request) {
 
 	user, err := app.Repository.GetUserById(r.Context(), userId)
 
-	fmt.Println(user, err)
-
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			app.badRequestResponse(w, r, fmt.Errorf("user not found for id: %s", userId))

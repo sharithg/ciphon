@@ -7,6 +7,7 @@ import (
 	"github.com/sharithg/siphon/api"
 	"github.com/sharithg/siphon/internal/auth"
 	"github.com/sharithg/siphon/internal/repository"
+	"github.com/sharithg/siphon/internal/service"
 	"github.com/sharithg/siphon/internal/tools"
 )
 
@@ -20,12 +21,13 @@ func RunGoToTs(outputFile, tsPrefix string) {
 		api.GithubRepoResponse{},
 		api.ConnectRepoRequest{},
 		repository.GetWorkflowRunsRow{},
-		repository.GetWorkflowRunByIdRow{},
+		repository.GetJobsAndStepsByWorkflowIdRow{},
 		repository.GetStepsByJobIdRow{},
 		repository.GetCommandOutputsByStepIdRow{},
 		repository.GetJobsByWorkflowIdRow{},
 		auth.TokenPair{},
 		repository.GetUserByIdRow{},
+		service.Edge{},
 	}
 
 	if err := parser.ToTs(structs); err != nil {

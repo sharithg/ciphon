@@ -34,6 +34,7 @@ type CommandOutput struct {
 	Output     string `json:"output"`
 	CmdType    string `json:"cmdType"`
 	Id         string `json:"id"`
+	IsUserCmd  bool   `json:"isUserCmd"`
 }
 
 type Runner struct {
@@ -62,7 +63,8 @@ func (r *Runner) RunCommands(conn *websocket.Conn, e Commands) error {
 		defer close(outputChan)
 
 		running := CommandOutput{
-			CmdType: "running",
+			CmdType:   "running",
+			IsUserCmd: false,
 		}
 
 		if err := sendOutput(conn, running); err != nil {
@@ -88,7 +90,8 @@ func (r *Runner) RunCommands(conn *websocket.Conn, e Commands) error {
 		}
 
 		doneCmd := CommandOutput{
-			CmdType: "doneCmd",
+			CmdType:   "doneCmd",
+			IsUserCmd: false,
 		}
 		if err := sendOutput(conn, doneCmd); err != nil {
 			slog.Error("error sending output over websocket", "err", err)
@@ -106,8 +109,9 @@ func (r *Runner) RunCommands(conn *websocket.Conn, e Commands) error {
 		for _, cmd := range e.Commands {
 
 			running := CommandOutput{
-				CmdType: "running",
-				Id:      cmd.Id.String(),
+				CmdType:   "running",
+				Id:        cmd.Id.String(),
+				IsUserCmd: true,
 			}
 
 			stdoutCmdFunc := stdoutHandler(outputChan, "cmd", cmd.Id.String())
@@ -130,8 +134,9 @@ func (r *Runner) RunCommands(conn *websocket.Conn, e Commands) error {
 				return
 			}
 			doneCmd := CommandOutput{
-				CmdType: "doneCmd",
-				Id:      cmd.Id.String(),
+				CmdType:   "doneCmd",
+				Id:        cmd.Id.String(),
+				IsUserCmd: true,
 			}
 			if err := sendOutput(conn, doneCmd); err != nil {
 				slog.Error("error sending output over websocket", "err", err)
@@ -158,7 +163,8 @@ func (r *Runner) teardown(ctx context.Context, runId string, conn *websocket.Con
 	stderrTeardownFunc := stderrHandler(outputChan, "teardown", "")
 
 	running := CommandOutput{
-		CmdType: "running",
+		CmdType:   "running",
+		IsUserCmd: false,
 	}
 	if err := sendOutput(conn, running); err != nil {
 		slog.Error("error sending output over websocket", "err", err)
@@ -172,7 +178,8 @@ func (r *Runner) teardown(ctx context.Context, runId string, conn *websocket.Con
 	}
 
 	doneCmd := CommandOutput{
-		CmdType: "doneCmd",
+		CmdType:   "doneCmd",
+		IsUserCmd: false,
 	}
 	if err := sendOutput(conn, doneCmd); err != nil {
 		slog.Error("error sending output over websocket", "err", err)
