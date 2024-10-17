@@ -118,7 +118,7 @@ func (d *Docker) StopAndRemoveContainer(ctx context.Context, containerName strin
 		return fmt.Errorf("error while stopping container: %v", err)
 	}
 
-	cmdRemove := exec.CommandContext(ctx, "docker", "rm", containerName)
+	cmdRemove := exec.CommandContext(ctx, "docker", "rm", "-v", containerName)
 
 	stdoutRemove, err := cmdRemove.StdoutPipe()
 	if err != nil {

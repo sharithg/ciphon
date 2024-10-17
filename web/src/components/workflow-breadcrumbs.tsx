@@ -39,7 +39,10 @@ const WorkflowBreadcrumbs = ({ children }: { children: React.ReactNode }) => {
   const [allJobs] = useAtom(jobs);
   const [allWorkflows] = useAtom(workflows);
   const router = useRouterState();
+
   const currentPath = getPathType(router.location.pathname);
+
+  console.log({ allWorkflows });
 
   const selectedWorkflow = useMemo(
     () =>
@@ -49,7 +52,7 @@ const WorkflowBreadcrumbs = ({ children }: { children: React.ReactNode }) => {
     [allWorkflows, currentPath]
   );
   const selectedJob = useMemo(
-    () => (allJobs ?? []).find((j) => j.id === currentPath?.jobId),
+    () => (allJobs?.jobs ?? []).find((j) => j.id === currentPath?.jobId),
     [allJobs, currentPath]
   );
 

@@ -17,12 +17,14 @@ import (
 	"github.com/sharithg/siphon/internal/remote"
 	"github.com/sharithg/siphon/internal/repository"
 	"github.com/sharithg/siphon/internal/runner"
+	"github.com/sharithg/siphon/internal/service"
 )
 
 type WorkflowManager struct {
 	store          *repository.Queries
 	githubClientId string
 	cache          *redis.Client
+	service        *service.Service
 }
 
 type WorkflowRun struct {
@@ -35,18 +37,22 @@ func (w WorkflowRun) MarshalBinary() ([]byte, error) {
 	return json.Marshal(w)
 }
 
-func New(s *repository.Queries, c string, r *redis.Client) *WorkflowManager {
-	return &WorkflowManager{store: s, githubClientId: c, cache: r}
+func New(s *repository.Queries, c string, r *redis.Client, serv *service.Service) *WorkflowManager {
+	return &WorkflowManager{store: s, githubClientId: c, cache: r, service: serv}
 }
 
 func (wm *WorkflowManager) TriggerWorkflow(ctx context.Context, workflowId uuid.UUID) error {
-	workflows, err := wm.getWorkflowsByID(ctx, workflowId)
+	jobMap, dag, err := wm.service.Job.GetJobsAndStepsByWorkflowId(ctx, workflowId)
 
 	if err != nil {
 		return err
 	}
 
-	jobMap := wm.partitionWorkflowsByJob(workflows)
+	executionOrder, err := dag.GetExecutionGroups()
+
+	if err != nil {
+		return err
+	}
 
 	nodes, err := wm.store.GetAllNodes(ctx)
 
@@ -54,36 +60,45 @@ func (wm *WorkflowManager) TriggerWorkflow(ctx context.Context, workflowId uuid.
 		return err
 	}
 
-	var wg sync.WaitGroup
+	for _, jobs := range executionOrder {
+		var wg sync.WaitGroup
 
-	for jobId, steps := range jobMap {
-		wg.Add(1)
+		for _, jobId := range jobs {
+			steps, ok := jobMap[jobId]
 
-		go func(jobId uuid.UUID, steps []repository.GetWorkflowRunByIdRow) {
-			defer wg.Done()
-
-			fmt.Printf("Processing job: %s\n", jobId)
-
-			if err := wm.updateJobStatus(ctx, jobId, "running"); err != nil {
-				slog.Error("error updating workflow status: %w", "err", err)
-				return
+			if !ok {
+				return fmt.Errorf("unexpected error, job id %s not found in map", jobId)
 			}
 
-			if err := wm.executeJob(ctx, steps, nodes[0]); err != nil {
-				if err := wm.updateJobStatus(ctx, jobId, "failed"); err != nil {
+			wg.Add(1)
+
+			go func(jobId uuid.UUID, steps []repository.GetJobsAndStepsByWorkflowIdRow) {
+				defer wg.Done()
+
+				fmt.Printf("Processing job: %s\n", jobId)
+
+				if err := wm.updateJobStatus(ctx, jobId, "running"); err != nil {
+					slog.Error("error updating workflow status: %w", "err", err)
+					return
+				}
+
+				if err := wm.executeJob(ctx, steps, nodes[0]); err != nil {
+					if err := wm.updateJobStatus(ctx, jobId, "failed"); err != nil {
+						slog.Error("error updating workflow status: %w", "err", err)
+					}
+					slog.Error("error executing job: %w", "err", err)
+					return
+				}
+
+				if err := wm.updateJobStatus(ctx, jobId, "success"); err != nil {
 					slog.Error("error updating workflow status: %w", "err", err)
 				}
-				slog.Error("error executing job: %w", "err", err)
-				return
-			}
+			}(jobId, steps)
+		}
 
-			if err := wm.updateJobStatus(ctx, jobId, "success"); err != nil {
-				slog.Error("error updating workflow status: %w", "err", err)
-			}
-		}(jobId, steps)
+		wg.Wait()
+
 	}
-
-	wg.Wait()
 
 	return nil
 }
@@ -124,28 +139,7 @@ func (wm *WorkflowManager) updateStepStatus(ctx context.Context, stepId string, 
 	return nil
 }
 
-func (wm *WorkflowManager) getWorkflowsByID(ctx context.Context, workflowId uuid.UUID) ([]repository.GetWorkflowRunByIdRow, error) {
-	workflows, err := wm.store.GetWorkflowRunById(ctx, workflowId)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(workflows) == 0 {
-		return nil, fmt.Errorf("no workflows found for workflow ID: %s", workflowId)
-	}
-
-	return workflows, nil
-}
-
-func (wm *WorkflowManager) partitionWorkflowsByJob(workflows []repository.GetWorkflowRunByIdRow) map[uuid.UUID][]repository.GetWorkflowRunByIdRow {
-	jobMap := make(map[uuid.UUID][]repository.GetWorkflowRunByIdRow)
-	for _, workflow := range workflows {
-		jobMap[workflow.JobID] = append(jobMap[workflow.JobID], workflow)
-	}
-	return jobMap
-}
-
-func (wm *WorkflowManager) executeJob(ctx context.Context, steps []repository.GetWorkflowRunByIdRow, node repository.GetAllNodesRow) error {
+func (wm *WorkflowManager) executeJob(ctx context.Context, steps []repository.GetJobsAndStepsByWorkflowIdRow, node repository.GetAllNodesRow) error {
 
 	headers := http.Header{}
 	headers.Set("X-Ciphon-Auth", node.AgentToken)
@@ -237,7 +231,7 @@ func (wm *WorkflowManager) executeJob(ctx context.Context, steps []repository.Ge
 
 }
 
-func (wm *WorkflowManager) getSteps(steps []repository.GetWorkflowRunByIdRow, node repository.GetAllNodesRow) (*runner.Commands, error) {
+func (wm *WorkflowManager) getSteps(steps []repository.GetJobsAndStepsByWorkflowIdRow, node repository.GetAllNodesRow) (*runner.Commands, error) {
 	var commands []runner.Command
 	workDir := "/"
 

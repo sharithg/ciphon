@@ -79,7 +79,8 @@ RETURNING id;
 -- name: GetJobsByWorkflowId :many
 SELECT id,
     name,
-    status
+    status,
+    requires
 FROM job_runs
 WHERE workflow_id = $1;
 
@@ -177,7 +178,7 @@ FROM workflow_runs w
 ORDER BY w.created_at DESC
 LIMIT 20;
 
--- name: GetWorkflowRunById :many
+-- name: GetJobsAndStepsByWorkflowId :many
 SELECT j.id as job_id,
     s.id as step_id,
     s.command,
@@ -189,7 +190,8 @@ SELECT j.id as job_id,
     r.name as repo_name,
     pr.commit_sha,
     pr.branch,
-    j.docker
+    j.docker,
+    j.requires
 FROM workflow_runs w
     JOIN pipeline_runs pr ON pr.id = w.pipeline_run_id
     JOIN github_repos r ON r.repo_id = pr.repo_id
