@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+option go_package = "github.com/sharithg/siphon/internal/protogen";
+
+message BaseEvent {
+  string type = 1;
+}
+
+message Command {
+  string id = 1;
+  string cmd = 2;
+  int32 order = 3;
+  string workDir = 4;
+}
+
+message Commands {
+  BaseEvent base_event = 1;
+  string image = 2;
+  repeated Command commands = 3;
+}
+
+message CommandOutput {
+  string outputType = 1;
+  string output = 2;
+  string cmdType = 3;
+  string id = 4;
+  bool isUserCmd = 5;
+}
+
+service StreamingService {
+    rpc RunCommands(Commands) returns (stream CommandOutput) {}
+}

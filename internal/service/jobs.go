@@ -23,10 +23,10 @@ func (j *JobService) GetByWorkflowId(ctx context.Context, id uuid.UUID) ([]repos
 	return jobs, jobDag, nil
 }
 
-func (j *JobService) GetJobsAndStepsByWorkflowId(ctx context.Context, id uuid.UUID) (map[uuid.UUID][]repository.GetJobsAndStepsByWorkflowIdRow, *DAG, error) {
+func (j *JobService) GetJobsAndStepsByWorkflowId(ctx context.Context, id uuid.UUID) (map[uuid.UUID][]repository.GetJobsAndStepsByWorkflowIdRow, *repository.GetJobsAndStepsByWorkflowIdRow, *DAG, error) {
 	workflows, err := j.repository.GetJobsAndStepsByWorkflowId(ctx, id)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	jobMap := j.partitionWorkflowsByJob(workflows)
@@ -34,10 +34,10 @@ func (j *JobService) GetJobsAndStepsByWorkflowId(ctx context.Context, id uuid.UU
 	_, dag, err := j.GetByWorkflowId(ctx, id)
 
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return jobMap, dag, nil
+	return jobMap, &workflows[0], dag, nil
 }
 
 func (j *JobService) partitionWorkflowsByJob(workflows []repository.GetJobsAndStepsByWorkflowIdRow) map[uuid.UUID][]repository.GetJobsAndStepsByWorkflowIdRow {

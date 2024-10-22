@@ -114,7 +114,7 @@ func (h *GhWebhookHandler) handlePushEvent(event github.PushEvent, configStr str
 	for name := range config.Workflows {
 		workflowRun := repository.CreateWorkflowRunParams{
 			Name:          name,
-			PipelineRunID: pipelineId,
+			PipelineRefID: pipelineId,
 		}
 
 		workflowId, err := h.app.Repository.CreateWorkflowRun(ctx, workflowRun)
@@ -232,15 +232,14 @@ func (h *GhWebhookHandler) createPipelineRun(ctx context.Context, event github.P
 		return uuid.Nil, errors.New("event.Repo.ID is nil")
 	}
 
-	pipelineRun := repository.CreatePipelineRunParams{
+	pipelineRun := repository.CreatePipelineRefParams{
 		CommitSha:  *headCommit.ID,
 		ConfigFile: configStr,
 		Branch:     strings.Replace(*event.Ref, "refs/heads/", "", -1),
-		Status:     "received",
 		RepoID:     *event.Repo.ID,
 	}
 
-	pipelineId, err := h.app.Repository.CreatePipelineRun(ctx, pipelineRun)
+	pipelineId, err := h.app.Repository.CreatePipelineRef(ctx, pipelineRun)
 
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("error creating pipeline run: %s", err)

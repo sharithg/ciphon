@@ -36,7 +36,7 @@ export type TGetWorkflowRunsRow = {
   repoName: string;
   pipelineId: string;
   workflowId: string;
-  status: string;
+  status: "running" | "failed" | "success" | "not_started" | "pending";
   workflowName: string;
   branch: string;
   createdAt: string;
@@ -53,10 +53,12 @@ export type TGetJobsAndStepsByWorkflowIdRow = {
   stepOrder: number;
   url: string;
   repoName: string;
+  owner: string;
   commitSha: string;
   branch: string;
   docker: string;
   requires: string[];
+  workflowId: string;
 };
 
 export type TGetStepsByJobIdRow = {
@@ -64,7 +66,7 @@ export type TGetStepsByJobIdRow = {
   id: string;
   name: string;
   command: string;
-  status: string;
+  status: "running" | "failed" | "success" | "not_started" | "pending";
 };
 
 export type TGetCommandOutputsByStepIdRow = {
@@ -78,7 +80,7 @@ export type TGetCommandOutputsByStepIdRow = {
 export type TGetJobsByWorkflowIdRow = {
   id: string;
   name: string;
-  status: string;
+  status: "running" | "failed" | "success" | "not_started" | "pending";
   requires: string[];
 };
 

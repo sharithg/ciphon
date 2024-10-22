@@ -109,7 +109,7 @@ func (app *Application) triggerWorkflow(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	wm := workflow.New(app.Repository, app.Config.Github.AppConfig.OAuth.ClientID, app.Cache, app.Service)
+	wm := workflow.New(app.Repository, app.Config.Github.AppConfig.OAuth.ClientID, app.Cache, app.Service, app.Github.Client)
 
 	if err := app.Repository.ResetWorkflowRun(r.Context(), app.Pool, id); err != nil {
 		app.internalServerError(w, r, err)
@@ -148,21 +148,22 @@ func (app *Application) triggerWorkflow(w http.ResponseWriter, r *http.Request) 
 	}()
 }
 
-func (app *Application) updateWorkflowStatus(ctx context.Context, workflowId uuid.UUID, status string) error {
+func (app *Application) updateWorkflowStatus(ctx context.Context, workflowId uuid.UUID, status repository.WorkflowStatusEnum) error {
 	eventPayload := workflow.WorkflowRun{Id: workflowId, Status: status, Type: "workflow"}
 	if err := app.Cache.Publish(ctx, "workflow_run", eventPayload).Err(); err != nil {
 		return err
 	}
+
 	if err := app.Repository.UpdateWorkflowRunStatus(ctx, repository.UpdateWorkflowRunStatusParams{
 		ID:     workflowId,
-		Status: &status,
+		Status: status,
 	}); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (app *Application) updateWorkflowStatusWithDuration(ctx context.Context, workflowId uuid.UUID, status string, start time.Time) error {
+func (app *Application) updateWorkflowStatusWithDuration(ctx context.Context, workflowId uuid.UUID, status repository.WorkflowStatusEnum, start time.Time) error {
 	duration := time.Since(start)
 	secs := duration.Seconds()
 	eventPayload := workflow.WorkflowRun{Id: workflowId, Status: status, Type: "workflow"}

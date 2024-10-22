@@ -1,0 +1,19 @@
+FROM golang:1.22 as builder
+
+WORKDIR /app
+
+COPY . .
+RUN go mod download
+
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o go-api /app/cmd/api/api.go
+
+FROM scratch
+
+WORKDIR /app
+
+COPY --from=builder /app/go-api .
+COPY --from=alpine:latest /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+EXPOSE 8000
+
+CMD ["/api"]

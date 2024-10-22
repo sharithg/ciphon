@@ -1,27 +1,26 @@
 package agent
 
 import (
+	"fmt"
 	"log"
-	"net/http"
+	"net"
 
-	"github.com/gorilla/websocket"
+	"github.com/sharithg/siphon/agent/cli"
+	"github.com/sharithg/siphon/agent/docker"
+	"github.com/sharithg/siphon/agent/grpcserver"
 	"github.com/sharithg/siphon/internal/config"
-	"github.com/sharithg/siphon/internal/docker"
-	"github.com/sharithg/siphon/internal/runner"
+	pb "github.com/sharithg/siphon/internal/protogen"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
-
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		// Optionally handle origin checks here if needed
-		return true
-	},
-}
 
 type Application struct {
 	Config      Config
+	Cli         *cli.Cli
 	Docker      *docker.Docker
 	AgentConfig *config.AgentConfig
-	Runner      *runner.Runner
 }
 
 type Config struct {
@@ -29,21 +28,45 @@ type Config struct {
 	Env  string
 }
 
-func authMiddleware(token string, next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		authToken := r.Header.Get("X-Ciphon-Auth")
-		if authToken != token {
-			http.Error(w, "Forbidden: Invalid auth", http.StatusForbidden)
-			return
-		}
-		next(w, r)
+func (app *Application) AuthInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+
+	if app.Config.Env == "local" {
+		return handler(srv, ss)
 	}
+	md, ok := metadata.FromIncomingContext(ss.Context())
+	if !ok {
+		return status.Error(codes.Unauthenticated, "missing metadata")
+	}
+
+	token, ok := md["authorization"]
+	if !ok || len(token) == 0 {
+		return status.Error(codes.Unauthenticated, "missing authorization token")
+	}
+
+	if token[0] != app.AgentConfig.Token {
+		return status.Error(codes.Unauthenticated, "invalid token")
+	}
+
+	return handler(srv, ss)
 }
 
 func (app *Application) Run() error {
+
+	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0%s", app.Config.Addr))
+
+	if err != nil {
+		panic("error building server: " + err.Error())
+	}
+
+	s := grpc.NewServer(
+		grpc.StreamInterceptor(app.AuthInterceptor),
+	)
+	pb.RegisterStreamingServiceServer(s, grpcserver.GrpcServer{})
+
 	log.Printf("Server has started on %s, env: %s", app.Config.Addr, app.Config.Env)
 
-	http.HandleFunc("/ws", authMiddleware(app.AgentConfig.Token, app.serveWs))
-	log.Fatal(http.ListenAndServe(app.Config.Addr, nil))
+	if err := s.Serve(listener); err != nil {
+		panic("error building server: " + err.Error())
+	}
 	return nil
 }
