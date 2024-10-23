@@ -7,10 +7,10 @@ import { withJwt } from "../user-auth";
 import { apiClient } from "../../axios";
 import {
   TGetCommandOutputsByStepIdRow,
-  TGetJobsByWorkflowIdRow,
   TGetStepsByJobIdRow,
   TGetWorkflowRunsRow,
 } from "../../types/api";
+import { TJobsResponse } from "../../types";
 
 export const useGetWorkflows = () => {
   const [, setWorkflows] = useAtom(workflows);
@@ -47,12 +47,11 @@ export const useGetJobs = (workflowId: string) => {
   return useQuery({
     queryKey: [`workflows/${workflowId}/jobs`],
     queryFn: () =>
-      fetchData<TGetJobsByWorkflowIdRow[]>(
-        `${API_URL}/workflows/${workflowId}/jobs`
-      ),
+      fetchData<TJobsResponse>(`${API_URL}/workflows/${workflowId}/jobs`),
     onSuccess: (data) => {
       setJobs(data);
     },
+    refetchInterval: 500,
   });
 };
 

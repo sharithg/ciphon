@@ -106,7 +106,7 @@ func goToTSType(goType string) string {
 		return "number"
 	case strings.HasPrefix(goType, "[]int"), strings.HasPrefix(goType, "[]float"):
 		return "number[]"
-	case strings.HasPrefix(goType, "[]string"):
+	case strings.HasPrefix(goType, "[]string"), strings.HasPrefix(goType, "[]uuid.UUID"):
 		return "string[]"
 	case goType == "string":
 		return "string"

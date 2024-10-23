@@ -1,5 +1,9 @@
-import { atom } from "jotai";
-import { TGetJobsByWorkflowIdRow, TGetWorkflowRunsRow } from "@/types/api";
+import { TGetWorkflowRunsRow } from "@/types/api";
+import { TJobsResponse } from "../../types";
+import { atomWithStorage } from "jotai/utils";
 
-export const workflows = atom<TGetWorkflowRunsRow[] | null>(null);
-export const jobs = atom<TGetJobsByWorkflowIdRow[] | null>(null);
+export const workflows = atomWithStorage<TGetWorkflowRunsRow[] | null>(
+  "workflows",
+  null
+);
+export const jobs = atomWithStorage<TJobsResponse | null>("jobs", null);

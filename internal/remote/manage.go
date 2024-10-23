@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/sharithg/siphon/internal/config"
@@ -45,53 +47,16 @@ func (s *SshConn) InstallTools(token string) error {
 		return fmt.Errorf("failed to make agent config: %w", err)
 	}
 
-	command := fmt.Sprintf(`
-		sudo apt-get update && \
-		sudo apt-get install -y docker.io git && \
-		
-		if ! getent group docker >/dev/null; then
-			sudo groupadd docker
-		fi
+	cmdFile, err := os.ReadFile("./internal/remote/scripts/install_tools.sh")
+	if err != nil {
+		return fmt.Errorf("error opening file: %w", err)
+	}
 
-		if ! groups $USER | grep &>/dev/null '\bdocker\b'; then
-			sudo usermod -aG docker $USER
-		fi
-
-		newgrp docker
-
-		docker pull sharith/ciphon-agent && \
-		mkdir -p ~/.ciphon && \
-		echo '%s' > ~/.ciphon/agent.json
-
-		IMAGE_NAME="sharith/ciphon-agent"
-
-		CONTAINER_ID=$(docker ps -q --filter "name=ciphon-agent")
-
-		if [ -n "$CONTAINER_ID" ]; then
-		echo "A container with image $IMAGE_NAME is already running (Container ID: $CONTAINER_ID)."
-		docker stop $CONTAINER_ID
-		docker run --rm -d -v ~/.ciphon/agent.json:/app/agent.json \
-				   --name ciphon-agent \
-				   -v /var/run/docker.sock:/var/run/docker.sock \
-				   -e AGENT_CONFIG_PATH=/app/agent.json \
-				   -p 8888:8888 \
-				   sharith/ciphon-agent
-		else
-		echo "No running container found for image $IMAGE_NAME. Starting a new container..."
-		docker run --rm -d -v ~/.ciphon/agent.json:/app/agent.json \
-		            -v /var/run/docker.sock:/var/run/docker.sock \
-					--name ciphon-agent \
-					-e AGENT_CONFIG_PATH=/app/agent.json \
-					-p 8888:8888 \
-					$IMAGE_NAME
-		fi
-	`, config)
+	command := strings.Replace(string(cmdFile), "%s", config, -1)
 
 	fmt.Printf("dial took %v\n", time.Since(start))
 
-	if err := RunCommand(session, command, func(streamType string, buf []byte) {
-		fmt.Printf("[%s] %s", streamType, string(buf))
-	}); err != nil {
+	if err := RunCommand(session, command, nil); err != nil {
 		return err
 	}
 

@@ -425,18 +425,93 @@ func (q *Queries) GetCommandOutputsByStepId(ctx context.Context, stepID uuid.UUI
 	return items, nil
 }
 
+const getJobsAndStepsByWorkflowId = `-- name: GetJobsAndStepsByWorkflowId :many
+SELECT j.id as job_id,
+    s.id as step_id,
+    s.command,
+    s.type,
+    s.keys,
+    s.paths,
+    s.step_order,
+    r.url,
+    r.name as repo_name,
+    pr.commit_sha,
+    pr.branch,
+    j.docker,
+    j.requires
+FROM workflow_runs w
+    JOIN pipeline_runs pr ON pr.id = w.pipeline_run_id
+    JOIN github_repos r ON r.repo_id = pr.repo_id
+    JOIN job_runs j ON j.workflow_id = w.id
+    JOIN step_runs s ON s.job_id = j.id
+WHERE w.id = $1
+ORDER BY s.step_order
+`
+
+type GetJobsAndStepsByWorkflowIdRow struct {
+	JobID     uuid.UUID   `json:"jobId"`
+	StepID    uuid.UUID   `json:"stepId"`
+	Command   *string     `json:"command"`
+	Type      string      `json:"type"`
+	Keys      []string    `json:"keys"`
+	Paths     []string    `json:"paths"`
+	StepOrder int32       `json:"stepOrder"`
+	Url       string      `json:"url"`
+	RepoName  string      `json:"repoName"`
+	CommitSha string      `json:"commitSha"`
+	Branch    string      `json:"branch"`
+	Docker    string      `json:"docker"`
+	Requires  []uuid.UUID `json:"requires"`
+}
+
+func (q *Queries) GetJobsAndStepsByWorkflowId(ctx context.Context, id uuid.UUID) ([]GetJobsAndStepsByWorkflowIdRow, error) {
+	rows, err := q.db.Query(ctx, getJobsAndStepsByWorkflowId, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetJobsAndStepsByWorkflowIdRow
+	for rows.Next() {
+		var i GetJobsAndStepsByWorkflowIdRow
+		if err := rows.Scan(
+			&i.JobID,
+			&i.StepID,
+			&i.Command,
+			&i.Type,
+			&i.Keys,
+			&i.Paths,
+			&i.StepOrder,
+			&i.Url,
+			&i.RepoName,
+			&i.CommitSha,
+			&i.Branch,
+			&i.Docker,
+			&i.Requires,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getJobsByWorkflowId = `-- name: GetJobsByWorkflowId :many
 SELECT id,
     name,
-    status
+    status,
+    requires
 FROM job_runs
 WHERE workflow_id = $1
 `
 
 type GetJobsByWorkflowIdRow struct {
-	ID     uuid.UUID `json:"id"`
-	Name   string    `json:"name"`
-	Status *string   `json:"status"`
+	ID       uuid.UUID   `json:"id"`
+	Name     string      `json:"name"`
+	Status   *string     `json:"status"`
+	Requires []uuid.UUID `json:"requires"`
 }
 
 func (q *Queries) GetJobsByWorkflowId(ctx context.Context, workflowID uuid.UUID) ([]GetJobsByWorkflowIdRow, error) {
@@ -448,7 +523,12 @@ func (q *Queries) GetJobsByWorkflowId(ctx context.Context, workflowID uuid.UUID)
 	var items []GetJobsByWorkflowIdRow
 	for rows.Next() {
 		var i GetJobsByWorkflowIdRow
-		if err := rows.Scan(&i.ID, &i.Name, &i.Status); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Status,
+			&i.Requires,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -590,76 +670,6 @@ func (q *Queries) GetUserById(ctx context.Context, id uuid.UUID) (GetUserByIdRow
 		&i.AvatarUrl,
 	)
 	return i, err
-}
-
-const getWorkflowRunById = `-- name: GetWorkflowRunById :many
-SELECT j.id as job_id,
-    s.id as step_id,
-    s.command,
-    s.type,
-    s.keys,
-    s.paths,
-    s.step_order,
-    r.url,
-    r.name as repo_name,
-    pr.commit_sha,
-    pr.branch,
-    j.docker
-FROM workflow_runs w
-    JOIN pipeline_runs pr ON pr.id = w.pipeline_run_id
-    JOIN github_repos r ON r.repo_id = pr.repo_id
-    JOIN job_runs j ON j.workflow_id = w.id
-    JOIN step_runs s ON s.job_id = j.id
-WHERE w.id = $1
-ORDER BY s.step_order
-`
-
-type GetWorkflowRunByIdRow struct {
-	JobID     uuid.UUID `json:"jobId"`
-	StepID    uuid.UUID `json:"stepId"`
-	Command   *string   `json:"command"`
-	Type      string    `json:"type"`
-	Keys      []string  `json:"keys"`
-	Paths     []string  `json:"paths"`
-	StepOrder int32     `json:"stepOrder"`
-	Url       string    `json:"url"`
-	RepoName  string    `json:"repoName"`
-	CommitSha string    `json:"commitSha"`
-	Branch    string    `json:"branch"`
-	Docker    string    `json:"docker"`
-}
-
-func (q *Queries) GetWorkflowRunById(ctx context.Context, id uuid.UUID) ([]GetWorkflowRunByIdRow, error) {
-	rows, err := q.db.Query(ctx, getWorkflowRunById, id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetWorkflowRunByIdRow
-	for rows.Next() {
-		var i GetWorkflowRunByIdRow
-		if err := rows.Scan(
-			&i.JobID,
-			&i.StepID,
-			&i.Command,
-			&i.Type,
-			&i.Keys,
-			&i.Paths,
-			&i.StepOrder,
-			&i.Url,
-			&i.RepoName,
-			&i.CommitSha,
-			&i.Branch,
-			&i.Docker,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const getWorkflowRuns = `-- name: GetWorkflowRuns :many

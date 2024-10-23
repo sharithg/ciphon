@@ -20,6 +20,7 @@ import (
 	"github.com/sharithg/siphon/internal/env"
 	"github.com/sharithg/siphon/internal/repo"
 	"github.com/sharithg/siphon/internal/repository"
+	"github.com/sharithg/siphon/internal/service"
 	"github.com/sharithg/siphon/internal/storage/minio"
 )
 
@@ -56,6 +57,7 @@ type Application struct {
 	Cache        *redis.Client
 	Auth         *auth.Auth
 	Pool         *pgxpool.Pool
+	Service      *service.Service
 }
 
 func (app *Application) Mount() http.Handler {

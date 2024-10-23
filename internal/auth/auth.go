@@ -8,7 +8,9 @@ import (
 )
 
 type Auth struct {
-	SecretKey []byte
+	SecretKey            []byte
+	AccessTokenLifetime  time.Duration
+	RefreshTokenLifetime time.Duration
 }
 
 type TokenPair struct {
@@ -21,12 +23,16 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-func New(s string) *Auth {
-	return &Auth{SecretKey: []byte(s)}
+func New(s string, accessTokenLifetime time.Duration, refreshTokenLifetime time.Duration) *Auth {
+	return &Auth{
+		SecretKey:            []byte(s),
+		AccessTokenLifetime:  accessTokenLifetime,
+		RefreshTokenLifetime: refreshTokenLifetime,
+	}
 }
 
 func (a *Auth) CreateToken(userId string) (*TokenPair, error) {
-	at, err := a.generateTokenWithUser(userId, time.Minute*15)
+	at, err := a.generateTokenWithUser(userId)
 	if err != nil {
 		return nil, fmt.Errorf("error signing access token: %v", err)
 	}
@@ -76,7 +82,7 @@ func (a *Auth) RefreshToken(oldRefreshToken string) (*TokenPair, error) {
 		return nil, fmt.Errorf("invalid refresh token claims")
 	}
 
-	at, err := a.generateTokenWithUser(claims["userId"].(string), time.Minute*15)
+	at, err := a.generateTokenWithUser(claims["userId"].(string))
 	if err != nil {
 		return nil, fmt.Errorf("error signing new access token: %v", err)
 	}
@@ -89,10 +95,10 @@ func (a *Auth) RefreshToken(oldRefreshToken string) (*TokenPair, error) {
 	return &TokenPair{AccessToken: at, RefreshToken: rt}, nil
 }
 
-func (a *Auth) generateTokenWithUser(userId string, duration time.Duration) (string, error) {
+func (a *Auth) generateTokenWithUser(userId string) (string, error) {
 	claims := jwt.MapClaims{
 		"userId": userId,
-		"exp":    time.Now().Add(duration).Unix(),
+		"exp":    time.Now().Add(a.AccessTokenLifetime).Unix(),
 	}
 	return a.generateToken(claims, a.SecretKey)
 }
@@ -101,7 +107,7 @@ func (a *Auth) generateRefreshToken(userId string) (string, error) {
 	claims := jwt.MapClaims{
 		"sub":    1,
 		"userId": userId,
-		"exp":    time.Now().Add(time.Hour * 24).Unix(),
+		"exp":    time.Now().Add(a.RefreshTokenLifetime).Unix(),
 	}
 	return a.generateToken(claims, a.SecretKey)
 }

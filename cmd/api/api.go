@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"log/slog"
+	"time"
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -13,6 +14,7 @@ import (
 	"github.com/sharithg/siphon/internal/env"
 	"github.com/sharithg/siphon/internal/repo"
 	"github.com/sharithg/siphon/internal/repository"
+	"github.com/sharithg/siphon/internal/service"
 	"github.com/sharithg/siphon/internal/storage/minio"
 )
 
@@ -78,7 +80,9 @@ func main() {
 		log.Fatal("error setting up minio buckets", err)
 	}
 
-	auth := auth.New(env.GetString("JWT_SECRET_KEY", true, ""))
+	auth := auth.New(env.GetString("JWT_SECRET_KEY", true, ""), time.Hour*24, time.Hour*24*7)
+
+	service := service.NewService(repository)
 
 	app := &api.Application{
 		Config:       cfg,
@@ -88,6 +92,7 @@ func main() {
 		Cache:        redisClient,
 		Auth:         auth,
 		Pool:         pool,
+		Service:      service,
 	}
 
 	mux := app.Mount()

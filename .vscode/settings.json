@@ -1,0 +1,11 @@
+{
+  "sqltools.connections": [
+    {
+      "previewLimit": 50,
+      "server": "localhost",
+      "driver": "PostgreSQL",
+      "name": "Ciphon Local",
+      "connectString": "postgres://postgres:postgres@localhost/siphon?sslmode=disable"
+    }
+  ]
+}
