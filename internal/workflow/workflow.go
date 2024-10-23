@@ -104,7 +104,7 @@ func (wm *WorkflowManager) executeJobs(ctx context.Context, executionOrder [][]u
 			go func(ctx context.Context, jobId uuid.UUID, steps []repository.GetJobsAndStepsByWorkflowIdRow) {
 				defer wg.Done()
 
-				fmt.Printf("Processing job: %s\n", jobId)
+				slog.Info("processing job", "jobId", jobId)
 
 				select {
 				case <-ctx.Done():

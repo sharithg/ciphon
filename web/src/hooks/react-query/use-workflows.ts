@@ -51,7 +51,7 @@ export const useGetJobs = (workflowId: string) => {
     onSuccess: (data) => {
       setJobs(data);
     },
-    refetchInterval: 500,
+    refetchInterval: 1000,
   });
 };
 
@@ -62,7 +62,7 @@ export const useGetSteps = (workflowId: string, jobId: string) => {
       fetchData<TGetStepsByJobIdRow[]>(
         `${API_URL}/workflows/${workflowId}/jobs/${jobId}/steps`
       ),
-    refetchInterval: 500,
+    refetchInterval: 1000,
   });
 };
 
@@ -78,7 +78,7 @@ export const useGetCommandOutput = (
       fetchData<TGetCommandOutputsByStepIdRow[]>(
         `${API_URL}/workflows/${workflowId}/jobs/${jobId}/steps/${stepId}/output`
       ),
-    refetchInterval: 500,
+    refetchInterval: 1000,
     enabled,
   });
 };
