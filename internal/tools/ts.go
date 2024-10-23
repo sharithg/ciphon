@@ -64,6 +64,7 @@ func (p *Parser) parseStruct(s interface{}) TsType {
 
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
+
 		tsField := TsField{
 			Name:      field.Name,
 			FieldType: goToTSType(field.Type.String()),
@@ -122,6 +123,8 @@ func goToTSType(goType string) string {
 		return "string"
 	case goType == "uuid.UUID":
 		return "string"
+	case goType == "repository.WorkflowStatusEnum", goType == "repository.StepStatusEnum", goType == "repository.JobStatusEnum":
+		return `"running" | "failed" | "success" | "not_started" | "pending"`
 	default:
 		log.Printf("warning: unhandled Go type '%s', defaulting to 'unknown'", goType)
 		return "unknown"

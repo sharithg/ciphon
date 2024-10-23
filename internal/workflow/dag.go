@@ -1,6 +1,9 @@
 package workflow
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 type DAG struct {
 	nodes   map[string][]string
@@ -23,10 +26,10 @@ func (g *DAG) AddNode(node string) {
 
 func (g *DAG) AddEdge(node1, node2 string) error {
 	if _, exists := g.nodes[node1]; !exists {
-		return errors.New("node1 does not exist")
+		return fmt.Errorf("node %s does not exist", node1)
 	}
 	if _, exists := g.nodes[node2]; !exists {
-		return errors.New("node2 does not exist")
+		return fmt.Errorf("node %s does not exist", node1)
 	}
 
 	g.nodes[node1] = append(g.nodes[node1], node2)

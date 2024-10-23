@@ -1,4 +1,4 @@
-package docker
+package cli
 
 import (
 	"bufio"
@@ -8,13 +8,13 @@ import (
 	"os/exec"
 )
 
-type Docker struct{}
+type Cli struct{}
 
-func New() (*Docker, error) {
-	return &Docker{}, nil
+func New() (*Cli, error) {
+	return &Cli{}, nil
 }
 
-func (d *Docker) RunBackgroundContainer(containerName, imageName string, stdoutHandler, stderrHandler func(string)) error {
+func (d *Cli) DockerRunBackgroundContainer(containerName, imageName string, stdoutHandler, stderrHandler func(string)) error {
 	cmd := exec.Command("docker", "run", "-d", "--name", containerName, imageName, "tail", "-f", "/dev/null")
 
 	stdout, err := cmd.StdoutPipe()
@@ -41,7 +41,7 @@ func (d *Docker) RunBackgroundContainer(containerName, imageName string, stdoutH
 	return nil
 }
 
-func (d *Docker) ExecAndStreamLogs(containerName, workingDir, command string, stdoutHandler, stderrHandler func(string)) error {
+func (d *Cli) DockerExecAndStreamLogs(containerName, workingDir, command string, stdoutHandler, stderrHandler func(string)) error {
 	cmd := exec.Command("docker", "exec", "-w", workingDir, containerName, "sh", "-c", command)
 
 	stdout, err := cmd.StdoutPipe()
@@ -68,7 +68,18 @@ func (d *Docker) ExecAndStreamLogs(containerName, workingDir, command string, st
 	return nil
 }
 
-func (d *Docker) PullImageAndStreamOutput(ctx context.Context, imageName string, stdoutHandler, stderrHandler func(string)) error {
+func (d *Cli) DockerPullImageAndStreamOutput(ctx context.Context, imageName string, stdoutHandler, stderrHandler func(string)) error {
+	checkCmd := exec.CommandContext(ctx, "docker", "images", "-q", imageName)
+	output, err := checkCmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to check if image exists: %v", err)
+	}
+
+	if len(output) > 0 {
+		stdoutHandler(fmt.Sprintf("Image %s already exists locally, skipping pull.", imageName))
+		return nil
+	}
+
 	cmd := exec.CommandContext(ctx, "docker", "pull", imageName)
 
 	stdout, err := cmd.StdoutPipe()
@@ -87,6 +98,7 @@ func (d *Docker) PullImageAndStreamOutput(ctx context.Context, imageName string,
 
 	streamOutput(stdout, stdoutHandler)
 	streamOutput(stderr, stderrHandler)
+
 	if err := cmd.Wait(); err != nil {
 		return fmt.Errorf("command finished with error: %v", err)
 	}
@@ -94,7 +106,7 @@ func (d *Docker) PullImageAndStreamOutput(ctx context.Context, imageName string,
 	return nil
 }
 
-func (d *Docker) StopAndRemoveContainer(ctx context.Context, containerName string, stdoutHandler, stderrHandler func(string)) error {
+func (d *Cli) DockerStopAndRemoveContainer(ctx context.Context, containerName string, stdoutHandler, stderrHandler func(string)) error {
 	cmdStop := exec.CommandContext(ctx, "docker", "stop", containerName)
 
 	stdoutStop, err := cmdStop.StdoutPipe()

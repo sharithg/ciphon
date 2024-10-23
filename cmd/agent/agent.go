@@ -8,10 +8,10 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/sharithg/siphon/agent"
+	"github.com/sharithg/siphon/agent/cli"
+	"github.com/sharithg/siphon/agent/docker"
 	"github.com/sharithg/siphon/internal/config"
-	"github.com/sharithg/siphon/internal/docker"
 	"github.com/sharithg/siphon/internal/env"
-	"github.com/sharithg/siphon/internal/runner"
 )
 
 func main() {
@@ -26,11 +26,13 @@ func main() {
 		Env:  env.GetString("GOENV", false, "local"),
 	}
 
-	dock, err := docker.New()
+	cli, err := cli.New()
 
 	if err != nil {
 		log.Fatalf("error creating docker client: %s", err)
 	}
+
+	dock := docker.New()
 
 	homeDir, err := os.UserHomeDir()
 
@@ -46,13 +48,11 @@ func main() {
 		log.Fatalf("error loading agent config: %s", err)
 	}
 
-	run := runner.New(dock)
-
 	app := &agent.Application{
 		Config:      cfg,
-		Docker:      dock,
+		Cli:         cli,
 		AgentConfig: agentConfig,
-		Runner:      run,
+		Docker:      dock,
 	}
 
 	log.Fatal(app.Run())

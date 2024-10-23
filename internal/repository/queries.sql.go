@@ -120,27 +120,25 @@ func (q *Queries) CreateNode(ctx context.Context, arg CreateNodeParams) (uuid.UU
 	return id, err
 }
 
-const createPipelineRun = `-- name: CreatePipelineRun :one
-INSERT INTO pipeline_runs (commit_sha, repo_id, config_file, branch, status)
-VALUES ($1, $2, $3, $4, $5)
+const createPipelineRef = `-- name: CreatePipelineRef :one
+INSERT INTO pipeline_refs (commit_sha, repo_id, config_file, branch)
+VALUES ($1, $2, $3, $4)
 RETURNING id
 `
 
-type CreatePipelineRunParams struct {
+type CreatePipelineRefParams struct {
 	CommitSha  string `json:"commitSha"`
 	RepoID     int64  `json:"repoId"`
 	ConfigFile string `json:"configFile"`
 	Branch     string `json:"branch"`
-	Status     string `json:"status"`
 }
 
-func (q *Queries) CreatePipelineRun(ctx context.Context, arg CreatePipelineRunParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, createPipelineRun,
+func (q *Queries) CreatePipelineRef(ctx context.Context, arg CreatePipelineRefParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, createPipelineRef,
 		arg.CommitSha,
 		arg.RepoID,
 		arg.ConfigFile,
 		arg.Branch,
-		arg.Status,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -251,18 +249,18 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (uuid.UU
 }
 
 const createWorkflowRun = `-- name: CreateWorkflowRun :one
-INSERT INTO workflow_runs (name, pipeline_run_id)
+INSERT INTO workflow_runs (name, pipeline_ref_id)
 VALUES ($1, $2)
 RETURNING id
 `
 
 type CreateWorkflowRunParams struct {
 	Name          string    `json:"name"`
-	PipelineRunID uuid.UUID `json:"pipelineRunId"`
+	PipelineRefID uuid.UUID `json:"pipelineRefId"`
 }
 
 func (q *Queries) CreateWorkflowRun(ctx context.Context, arg CreateWorkflowRunParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, createWorkflowRun, arg.Name, arg.PipelineRunID)
+	row := q.db.QueryRow(ctx, createWorkflowRun, arg.Name, arg.PipelineRefID)
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
@@ -435,12 +433,14 @@ SELECT j.id as job_id,
     s.step_order,
     r.url,
     r.name as repo_name,
+    r.owner,
     pr.commit_sha,
     pr.branch,
     j.docker,
-    j.requires
+    j.requires,
+    w.id as workflow_id
 FROM workflow_runs w
-    JOIN pipeline_runs pr ON pr.id = w.pipeline_run_id
+    JOIN pipeline_refs pr ON pr.id = w.pipeline_ref_id
     JOIN github_repos r ON r.repo_id = pr.repo_id
     JOIN job_runs j ON j.workflow_id = w.id
     JOIN step_runs s ON s.job_id = j.id
@@ -449,19 +449,21 @@ ORDER BY s.step_order
 `
 
 type GetJobsAndStepsByWorkflowIdRow struct {
-	JobID     uuid.UUID   `json:"jobId"`
-	StepID    uuid.UUID   `json:"stepId"`
-	Command   *string     `json:"command"`
-	Type      string      `json:"type"`
-	Keys      []string    `json:"keys"`
-	Paths     []string    `json:"paths"`
-	StepOrder int32       `json:"stepOrder"`
-	Url       string      `json:"url"`
-	RepoName  string      `json:"repoName"`
-	CommitSha string      `json:"commitSha"`
-	Branch    string      `json:"branch"`
-	Docker    string      `json:"docker"`
-	Requires  []uuid.UUID `json:"requires"`
+	JobID      uuid.UUID   `json:"jobId"`
+	StepID     uuid.UUID   `json:"stepId"`
+	Command    *string     `json:"command"`
+	Type       string      `json:"type"`
+	Keys       []string    `json:"keys"`
+	Paths      []string    `json:"paths"`
+	StepOrder  int32       `json:"stepOrder"`
+	Url        string      `json:"url"`
+	RepoName   string      `json:"repoName"`
+	Owner      string      `json:"owner"`
+	CommitSha  string      `json:"commitSha"`
+	Branch     string      `json:"branch"`
+	Docker     string      `json:"docker"`
+	Requires   []uuid.UUID `json:"requires"`
+	WorkflowID uuid.UUID   `json:"workflowId"`
 }
 
 func (q *Queries) GetJobsAndStepsByWorkflowId(ctx context.Context, id uuid.UUID) ([]GetJobsAndStepsByWorkflowIdRow, error) {
@@ -483,10 +485,12 @@ func (q *Queries) GetJobsAndStepsByWorkflowId(ctx context.Context, id uuid.UUID)
 			&i.StepOrder,
 			&i.Url,
 			&i.RepoName,
+			&i.Owner,
 			&i.CommitSha,
 			&i.Branch,
 			&i.Docker,
 			&i.Requires,
+			&i.WorkflowID,
 		); err != nil {
 			return nil, err
 		}
@@ -508,10 +512,10 @@ WHERE workflow_id = $1
 `
 
 type GetJobsByWorkflowIdRow struct {
-	ID       uuid.UUID   `json:"id"`
-	Name     string      `json:"name"`
-	Status   *string     `json:"status"`
-	Requires []uuid.UUID `json:"requires"`
+	ID       uuid.UUID     `json:"id"`
+	Name     string        `json:"name"`
+	Status   JobStatusEnum `json:"status"`
+	Requires []uuid.UUID   `json:"requires"`
 }
 
 func (q *Queries) GetJobsByWorkflowId(ctx context.Context, workflowID uuid.UUID) ([]GetJobsByWorkflowIdRow, error) {
@@ -589,11 +593,11 @@ ORDER BY step_order
 `
 
 type GetStepsByJobIdRow struct {
-	Type    string    `json:"type"`
-	ID      uuid.UUID `json:"id"`
-	Name    *string   `json:"name"`
-	Command *string   `json:"command"`
-	Status  *string   `json:"status"`
+	Type    string         `json:"type"`
+	ID      uuid.UUID      `json:"id"`
+	Name    *string        `json:"name"`
+	Command *string        `json:"command"`
+	Status  StepStatusEnum `json:"status"`
 }
 
 func (q *Queries) GetStepsByJobId(ctx context.Context, id uuid.UUID) ([]GetStepsByJobIdRow, error) {
@@ -683,22 +687,22 @@ SELECT pr.commit_sha,
     pr.created_at,
     w.duration
 FROM workflow_runs w
-    JOIN pipeline_runs pr ON pr.id = w.pipeline_run_id
+    JOIN pipeline_refs pr ON pr.id = w.pipeline_ref_id
     JOIN github_repos r ON r.repo_id = pr.repo_id
 ORDER BY w.created_at DESC
 LIMIT 20
 `
 
 type GetWorkflowRunsRow struct {
-	CommitSha    string    `json:"commitSha"`
-	RepoName     string    `json:"repoName"`
-	PipelineID   uuid.UUID `json:"pipelineId"`
-	WorkflowID   uuid.UUID `json:"workflowId"`
-	Status       *string   `json:"status"`
-	WorkflowName string    `json:"workflowName"`
-	Branch       string    `json:"branch"`
-	CreatedAt    time.Time `json:"createdAt"`
-	Duration     *float64  `json:"duration"`
+	CommitSha    string             `json:"commitSha"`
+	RepoName     string             `json:"repoName"`
+	PipelineID   uuid.UUID          `json:"pipelineId"`
+	WorkflowID   uuid.UUID          `json:"workflowId"`
+	Status       WorkflowStatusEnum `json:"status"`
+	WorkflowName string             `json:"workflowName"`
+	Branch       string             `json:"branch"`
+	CreatedAt    time.Time          `json:"createdAt"`
+	Duration     *float64           `json:"duration"`
 }
 
 func (q *Queries) GetWorkflowRuns(ctx context.Context) ([]GetWorkflowRunsRow, error) {
@@ -738,8 +742,8 @@ WHERE id = $2
 `
 
 type UpdateJobRunStatusParams struct {
-	Status *string   `json:"status"`
-	ID     uuid.UUID `json:"id"`
+	Status JobStatusEnum `json:"status"`
+	ID     uuid.UUID     `json:"id"`
 }
 
 func (q *Queries) UpdateJobRunStatus(ctx context.Context, arg UpdateJobRunStatusParams) error {
@@ -749,7 +753,7 @@ func (q *Queries) UpdateJobRunStatus(ctx context.Context, arg UpdateJobRunStatus
 
 const updateJobRunStatusNull = `-- name: UpdateJobRunStatusNull :exec
 UPDATE job_runs
-SET status = NULL
+SET status = 'not_started'
 WHERE workflow_id = $1
 `
 
@@ -782,8 +786,8 @@ WHERE id = $2
 `
 
 type UpdateStepRunStatusParams struct {
-	Status *string   `json:"status"`
-	ID     uuid.UUID `json:"id"`
+	Status StepStatusEnum `json:"status"`
+	ID     uuid.UUID      `json:"id"`
 }
 
 func (q *Queries) UpdateStepRunStatus(ctx context.Context, arg UpdateStepRunStatusParams) error {
@@ -793,7 +797,7 @@ func (q *Queries) UpdateStepRunStatus(ctx context.Context, arg UpdateStepRunStat
 
 const updateStepRunStatusNull = `-- name: UpdateStepRunStatusNull :exec
 UPDATE step_runs
-SET status = NULL
+SET status = 'not_started'
 WHERE job_id IN (
         SELECT id
         FROM job_runs
@@ -829,8 +833,8 @@ WHERE id = $2
 `
 
 type UpdateWorkflowRunStatusParams struct {
-	Status *string   `json:"status"`
-	ID     uuid.UUID `json:"id"`
+	Status WorkflowStatusEnum `json:"status"`
+	ID     uuid.UUID          `json:"id"`
 }
 
 func (q *Queries) UpdateWorkflowRunStatus(ctx context.Context, arg UpdateWorkflowRunStatusParams) error {
@@ -840,7 +844,7 @@ func (q *Queries) UpdateWorkflowRunStatus(ctx context.Context, arg UpdateWorkflo
 
 const updateWorkflowRunStatusNull = `-- name: UpdateWorkflowRunStatusNull :exec
 UPDATE workflow_runs
-SET status = NULL
+SET status = 'not_started'
 WHERE id = $1
 `
 

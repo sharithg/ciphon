@@ -1,6 +1,11 @@
 #!/bin/bash
+set -e
 
-sudo apt-get update && sudo apt-get install -y docker.io git
+if ! command -v docker &>/dev/null || ! command -v git &>/dev/null; then
+    sudo apt-get update && sudo apt-get install -y docker.io git
+else
+    echo "Docker and Git are already installed. Skipping installation."
+fi
 
 if ! getent group docker >/dev/null; then
     sudo groupadd docker
@@ -20,12 +25,19 @@ IMAGE_NAME="sharith/ciphon-agent"
 
 CONTAINER_ID=$(docker ps -q --filter "name=ciphon-agent")
 
+IMAGE_NAME="sharith/ciphon-agent"
+
+CONTAINER_ID=$(docker ps -q --filter "name=ciphon-agent")
+
 if [ -n "$CONTAINER_ID" ]; then
     echo "A container with image $IMAGE_NAME is already running (Container ID: $CONTAINER_ID). Stopping it..."
-    docker stop "$CONTAINER_ID"
-else
-    echo "No running container found for image $IMAGE_NAME. Starting a new container..."
+    if ! docker stop "$CONTAINER_ID"; then
+        echo "Failed to stop existing container" >&2
+        exit 1
+    fi
 fi
+
+echo "Preparing to start a new container for image $IMAGE_NAME..."
 
 docker run --rm -d \
     -v ~/.ciphon/agent.json:/app/agent.json \

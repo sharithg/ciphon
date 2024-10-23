@@ -37,9 +37,9 @@ SET status = $1,
     updated_at = now()
 WHERE id = $2;
 
--- name: CreatePipelineRun :one
-INSERT INTO pipeline_runs (commit_sha, repo_id, config_file, branch, status)
-VALUES ($1, $2, $3, $4, $5)
+-- name: CreatePipelineRef :one
+INSERT INTO pipeline_refs (commit_sha, repo_id, config_file, branch)
+VALUES ($1, $2, $3, $4)
 RETURNING id;
 
 -- name: CreateRepo :one
@@ -158,7 +158,7 @@ FROM users u
 WHERE u.id = $1;
 
 -- name: CreateWorkflowRun :one
-INSERT INTO workflow_runs (name, pipeline_run_id)
+INSERT INTO workflow_runs (name, pipeline_ref_id)
 VALUES ($1, $2)
 RETURNING id;
 
@@ -173,7 +173,7 @@ SELECT pr.commit_sha,
     pr.created_at,
     w.duration
 FROM workflow_runs w
-    JOIN pipeline_runs pr ON pr.id = w.pipeline_run_id
+    JOIN pipeline_refs pr ON pr.id = w.pipeline_ref_id
     JOIN github_repos r ON r.repo_id = pr.repo_id
 ORDER BY w.created_at DESC
 LIMIT 20;
@@ -188,12 +188,14 @@ SELECT j.id as job_id,
     s.step_order,
     r.url,
     r.name as repo_name,
+    r.owner,
     pr.commit_sha,
     pr.branch,
     j.docker,
-    j.requires
+    j.requires,
+    w.id as workflow_id
 FROM workflow_runs w
-    JOIN pipeline_runs pr ON pr.id = w.pipeline_run_id
+    JOIN pipeline_refs pr ON pr.id = w.pipeline_ref_id
     JOIN github_repos r ON r.repo_id = pr.repo_id
     JOIN job_runs j ON j.workflow_id = w.id
     JOIN step_runs s ON s.job_id = j.id
@@ -212,17 +214,17 @@ WHERE id = $2;
 
 -- name: UpdateWorkflowRunStatusNull :exec
 UPDATE workflow_runs
-SET status = NULL
+SET status = 'not_started'
 WHERE id = $1;
 
 -- name: UpdateJobRunStatusNull :exec
 UPDATE job_runs
-SET status = NULL
+SET status = 'not_started'
 WHERE workflow_id = $1;
 
 -- name: UpdateStepRunStatusNull :exec
 UPDATE step_runs
-SET status = NULL
+SET status = 'not_started'
 WHERE job_id IN (
         SELECT id
         FROM job_runs

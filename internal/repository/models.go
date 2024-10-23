@@ -5,12 +5,155 @@
 package repository
 
 import (
+	"database/sql/driver"
+	"fmt"
 	"time"
 
 	github "github.com/google/go-github/v65/github"
 	"github.com/google/uuid"
 	auth "github.com/sharithg/siphon/internal/auth"
 )
+
+type JobStatusEnum string
+
+const (
+	JobStatusEnumRunning    JobStatusEnum = "running"
+	JobStatusEnumFailed     JobStatusEnum = "failed"
+	JobStatusEnumSuccess    JobStatusEnum = "success"
+	JobStatusEnumNotStarted JobStatusEnum = "not_started"
+	JobStatusEnumPending    JobStatusEnum = "pending"
+	JobStatusEnumQueued     JobStatusEnum = "queued"
+	JobStatusEnumCancelled  JobStatusEnum = "cancelled"
+)
+
+func (e *JobStatusEnum) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = JobStatusEnum(s)
+	case string:
+		*e = JobStatusEnum(s)
+	default:
+		return fmt.Errorf("unsupported scan type for JobStatusEnum: %T", src)
+	}
+	return nil
+}
+
+type NullJobStatusEnum struct {
+	JobStatusEnum JobStatusEnum `json:"jobStatusEnum"`
+	Valid         bool          `json:"valid"` // Valid is true if JobStatusEnum is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullJobStatusEnum) Scan(value interface{}) error {
+	if value == nil {
+		ns.JobStatusEnum, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.JobStatusEnum.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullJobStatusEnum) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.JobStatusEnum), nil
+}
+
+type StepStatusEnum string
+
+const (
+	StepStatusEnumRunning    StepStatusEnum = "running"
+	StepStatusEnumFailed     StepStatusEnum = "failed"
+	StepStatusEnumSuccess    StepStatusEnum = "success"
+	StepStatusEnumNotStarted StepStatusEnum = "not_started"
+	StepStatusEnumPending    StepStatusEnum = "pending"
+	StepStatusEnumQueued     StepStatusEnum = "queued"
+	StepStatusEnumCancelled  StepStatusEnum = "cancelled"
+)
+
+func (e *StepStatusEnum) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = StepStatusEnum(s)
+	case string:
+		*e = StepStatusEnum(s)
+	default:
+		return fmt.Errorf("unsupported scan type for StepStatusEnum: %T", src)
+	}
+	return nil
+}
+
+type NullStepStatusEnum struct {
+	StepStatusEnum StepStatusEnum `json:"stepStatusEnum"`
+	Valid          bool           `json:"valid"` // Valid is true if StepStatusEnum is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullStepStatusEnum) Scan(value interface{}) error {
+	if value == nil {
+		ns.StepStatusEnum, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.StepStatusEnum.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullStepStatusEnum) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.StepStatusEnum), nil
+}
+
+type WorkflowStatusEnum string
+
+const (
+	WorkflowStatusEnumRunning    WorkflowStatusEnum = "running"
+	WorkflowStatusEnumFailed     WorkflowStatusEnum = "failed"
+	WorkflowStatusEnumSuccess    WorkflowStatusEnum = "success"
+	WorkflowStatusEnumNotStarted WorkflowStatusEnum = "not_started"
+	WorkflowStatusEnumPending    WorkflowStatusEnum = "pending"
+	WorkflowStatusEnumQueued     WorkflowStatusEnum = "queued"
+	WorkflowStatusEnumCancelled  WorkflowStatusEnum = "cancelled"
+)
+
+func (e *WorkflowStatusEnum) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = WorkflowStatusEnum(s)
+	case string:
+		*e = WorkflowStatusEnum(s)
+	default:
+		return fmt.Errorf("unsupported scan type for WorkflowStatusEnum: %T", src)
+	}
+	return nil
+}
+
+type NullWorkflowStatusEnum struct {
+	WorkflowStatusEnum WorkflowStatusEnum `json:"workflowStatusEnum"`
+	Valid              bool               `json:"valid"` // Valid is true if WorkflowStatusEnum is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullWorkflowStatusEnum) Scan(value interface{}) error {
+	if value == nil {
+		ns.WorkflowStatusEnum, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.WorkflowStatusEnum.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullWorkflowStatusEnum) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.WorkflowStatusEnum), nil
+}
 
 type CommandOutput struct {
 	ID          uuid.UUID `json:"id"`
@@ -42,15 +185,15 @@ type GithubUserInfo struct {
 }
 
 type JobRun struct {
-	ID         uuid.UUID   `json:"id"`
-	WorkflowID uuid.UUID   `json:"workflowId"`
-	Name       string      `json:"name"`
-	Status     *string     `json:"status"`
-	Docker     string      `json:"docker"`
-	Node       *string     `json:"node"`
-	CreatedAt  time.Time   `json:"createdAt"`
-	UpdatedAt  time.Time   `json:"updatedAt"`
-	Requires   []uuid.UUID `json:"requires"`
+	ID         uuid.UUID     `json:"id"`
+	WorkflowID uuid.UUID     `json:"workflowId"`
+	Name       string        `json:"name"`
+	Status     JobStatusEnum `json:"status"`
+	Docker     string        `json:"docker"`
+	Node       *string       `json:"node"`
+	Requires   []uuid.UUID   `json:"requires"`
+	CreatedAt  time.Time     `json:"createdAt"`
+	UpdatedAt  time.Time     `json:"updatedAt"`
 }
 
 type Node struct {
@@ -66,29 +209,28 @@ type Node struct {
 	UpdatedAt  time.Time `json:"updatedAt"`
 }
 
-type PipelineRun struct {
+type PipelineRef struct {
 	ID         uuid.UUID `json:"id"`
 	CommitSha  string    `json:"commitSha"`
 	ConfigFile string    `json:"configFile"`
 	RepoID     int64     `json:"repoId"`
-	Status     string    `json:"status"`
 	Branch     string    `json:"branch"`
 	CreatedAt  time.Time `json:"createdAt"`
 	UpdatedAt  time.Time `json:"updatedAt"`
 }
 
 type StepRun struct {
-	ID        uuid.UUID `json:"id"`
-	JobID     uuid.UUID `json:"jobId"`
-	StepOrder int32     `json:"stepOrder"`
-	Type      string    `json:"type"`
-	Name      *string   `json:"name"`
-	Status    *string   `json:"status"`
-	Command   *string   `json:"command"`
-	Keys      []string  `json:"keys"`
-	Paths     []string  `json:"paths"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID        uuid.UUID      `json:"id"`
+	JobID     uuid.UUID      `json:"jobId"`
+	StepOrder int32          `json:"stepOrder"`
+	Type      string         `json:"type"`
+	Name      *string        `json:"name"`
+	Status    StepStatusEnum `json:"status"`
+	Command   *string        `json:"command"`
+	Keys      []string       `json:"keys"`
+	Paths     []string       `json:"paths"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
 }
 
 type User struct {
@@ -102,11 +244,11 @@ type User struct {
 }
 
 type WorkflowRun struct {
-	ID            uuid.UUID `json:"id"`
-	Name          string    `json:"name"`
-	Status        *string   `json:"status"`
-	PipelineRunID uuid.UUID `json:"pipelineRunId"`
-	Duration      *float64  `json:"duration"`
-	CreatedAt     time.Time `json:"createdAt"`
-	UpdatedAt     time.Time `json:"updatedAt"`
+	ID            uuid.UUID          `json:"id"`
+	Name          string             `json:"name"`
+	Status        WorkflowStatusEnum `json:"status"`
+	PipelineRefID uuid.UUID          `json:"pipelineRefId"`
+	Duration      *float64           `json:"duration"`
+	CreatedAt     time.Time          `json:"createdAt"`
+	UpdatedAt     time.Time          `json:"updatedAt"`
 }

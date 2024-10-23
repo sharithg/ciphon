@@ -1,6 +1,6 @@
 # Makefile
 
-.PHONY: kill-port dev make-migration gh-wh-proxy dev-ui dev-agent migrate-down
+.PHONY: kill-port dev make-migration gen gh-wh-proxy dev-ui dev-agent migrate-down
 
 id ?=
 
@@ -20,13 +20,19 @@ gh-wh-proxy:
 	smee -u https://smee.io/ZdaCIAdCc7Z02P --port 8000 --path /api/github/hook
 
 dev:
-	$(MAKE) gh-wh-proxy & air -c ./.air.api.toml & wait
+	$(MAKE) gh-wh-proxy & GOENV=local air -c ./.air.api.toml & wait
 
 dev-agent:
-	air -c ./.air.agent.toml
+	DOCKER_API_VERSION=1.45 air -c ./.air.agent.toml
 
 dev-ui:
 	cd web && pnpm dev
 
 deploy-agent:
 	docker buildx build --platform linux/amd64 --push -f Dockerfile.agent . -t sharith/ciphon-agent
+
+gen:
+	@protoc \
+		--proto_path=proto "proto/job_runs.proto" \
+		--go_out=internal/protogen --go_opt=paths=source_relative \
+  		--go-grpc_out=internal/protogen --go-grpc_opt=paths=source_relative

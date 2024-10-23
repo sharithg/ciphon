@@ -10,7 +10,7 @@ import (
 type Service struct {
 	Job interface {
 		GetByWorkflowId(ctx context.Context, id uuid.UUID) ([]repository.GetJobsByWorkflowIdRow, *DAG, error)
-		GetJobsAndStepsByWorkflowId(ctx context.Context, id uuid.UUID) (map[uuid.UUID][]repository.GetJobsAndStepsByWorkflowIdRow, *DAG, error)
+		GetJobsAndStepsByWorkflowId(ctx context.Context, id uuid.UUID) (map[uuid.UUID][]repository.GetJobsAndStepsByWorkflowIdRow, *repository.GetJobsAndStepsByWorkflowIdRow, *DAG, error)
 	}
 }
 
